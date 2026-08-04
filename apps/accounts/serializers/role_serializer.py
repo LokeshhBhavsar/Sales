@@ -1,0 +1,330 @@
+from rest_framework import serializers
+
+from apps.accounts.models.role import Role
+from apps.masters.models.company import Company
+from apps.masters.models.plant import Plant
+from apps.masters.models.department import Department
+
+
+class RoleCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Role
+        fields = [
+            "company",
+            "plant",
+            "department",
+            "name",
+            "code",
+            "description",
+        ]
+
+    def validate(self, attrs):
+
+        company = attrs.get("company")
+        plant = attrs.get("plant")
+        department = attrs.get("department")
+
+        # Company is mandatory
+        if not company:
+            raise serializers.ValidationError(
+                {
+                    "company": "Company is required."
+                }
+            )
+
+        # Plant must belong to Company
+        if plant:
+
+            if plant.company_id != company.id:
+
+                raise serializers.ValidationError(
+                    {
+                        "plant": "Plant does not belong to selected company."
+                    }
+                )
+
+        # Department must belong to Plant
+        if department:
+
+            if not plant:
+
+                raise serializers.ValidationError(
+                    {
+                        "plant": "Plant is required when department is selected."
+                    }
+                )
+
+            if department.plant_id != plant.id:
+
+                raise serializers.ValidationError(
+                    {
+                        "department": "Department does not belong to selected plant."
+                    }
+                )
+
+        return attrs
+
+    def validate_name(self, value):
+
+        return value.strip()
+
+    def validate_code(self, value):
+
+        return value.strip().upper()
+
+    def validate(self, attrs):
+
+        attrs = super().validate(attrs)
+
+        company = attrs.get("company")
+        plant = attrs.get("plant")
+        department = attrs.get("department")
+        name = attrs.get("name")
+        code = attrs.get("code")
+
+        if Role.objects.filter(
+            company=company,
+            plant=plant,
+            department=department,
+            name__iexact=name
+        ).exists():
+
+            raise serializers.ValidationError(
+                "Role already exists."
+            )
+
+        if Role.objects.filter(
+            company=company,
+            plant=plant,
+            department=department,
+            code__iexact=code
+        ).exists():
+
+            raise serializers.ValidationError(
+                "Role code already exists."
+            )
+
+        return attrs
+
+    
+class RoleListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing roles.
+    """
+
+    company_id = serializers.UUIDField(
+        source="company.id",
+        read_only=True
+    )
+
+    company_name = serializers.CharField(
+        source="company.name",
+        read_only=True
+    )
+
+    plant_id = serializers.UUIDField(
+        source="plant.id",
+        read_only=True
+    )
+
+    plant_name = serializers.CharField(
+        source="plant.name",
+        read_only=True
+    )
+
+    department_id = serializers.UUIDField(
+        source="department.id",
+        read_only=True
+    )
+
+    department_name = serializers.CharField(
+        source="department.name",
+        read_only=True
+    )
+
+    class Meta:
+        model = Role
+        fields = [
+            "id",
+
+            "company_id",
+            "company_name",
+
+            "plant_id",
+            "plant_name",
+
+            "department_id",
+            "department_name",
+
+            "name",
+            "code",
+            "description",
+
+            "is_active",
+
+            "created_at",
+            "updated_at",
+        ]
+
+
+
+
+class RoleUpdateSerializer(serializers.ModelSerializer):
+
+    company = serializers.UUIDField(required=False)
+    plant = serializers.UUIDField(required=False)
+    department = serializers.UUIDField(required=False)
+
+    class Meta:
+        model = Role
+        fields = [
+            "company",
+            "plant",
+            "department",
+            "name",
+            "code",
+            "description",
+            "is_active",
+        ]
+
+    def validate(self, attrs):
+
+        company_id = attrs.get(
+            "company",
+            self.instance.company.id if self.instance.company else None
+        )
+
+        plant_id = attrs.get(
+            "plant",
+            self.instance.plant.id if self.instance.plant else None
+        )
+
+        department_id = attrs.get(
+            "department",
+            self.instance.department.id if self.instance.department else None
+        )
+
+        company = None
+        plant = None
+        department = None
+
+        # ---------------- Company ----------------
+
+        if company_id:
+
+            try:
+                company = Company.objects.get(
+                    id=company_id
+                )
+
+            except Company.DoesNotExist:
+                raise serializers.ValidationError(
+                    {
+                        "company": "Company not found."
+                    }
+                )
+
+            attrs["company"] = company
+
+        # ---------------- Plant ----------------
+
+        if plant_id:
+
+            if company is None:
+                raise serializers.ValidationError(
+                    {
+                        "company": "Company is required."
+                    }
+                )
+
+            try:
+                plant = Plant.objects.get(
+                    id=plant_id,
+                    company=company
+                )
+
+            except Plant.DoesNotExist:
+                raise serializers.ValidationError(
+                    {
+                        "plant": "Plant does not belong to selected company."
+                    }
+                )
+
+            attrs["plant"] = plant
+
+        # ---------------- Department ----------------
+
+        if department_id:
+
+            if plant is None:
+                raise serializers.ValidationError(
+                    {
+                        "plant": "Plant is required."
+                    }
+                )
+
+            try:
+                department = Department.objects.get(
+                    id=department_id,
+                    plant=plant
+                )
+
+            except Department.DoesNotExist:
+                raise serializers.ValidationError(
+                    {
+                        "department": "Department does not belong to selected plant."
+                    }
+                )
+
+            attrs["department"] = department
+
+        return attrs
+
+    def validate_name(self, value):
+
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Role name is required."
+            )
+
+        if Role.objects.filter(
+            company=self.instance.company,
+            plant=self.instance.plant,
+            department=self.instance.department,
+            name__iexact=value
+        ).exclude(
+            id=self.instance.id
+        ).exists():
+
+            raise serializers.ValidationError(
+                "Role name already exists."
+            )
+
+        return value
+
+    def validate_code(self, value):
+
+        value = value.strip().upper()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Role code is required."
+            )
+
+        if Role.objects.filter(
+            company=self.instance.company,
+            plant=self.instance.plant,
+            department=self.instance.department,
+            code__iexact=value
+        ).exclude(
+            id=self.instance.id
+        ).exists():
+
+            raise serializers.ValidationError(
+                "Role code already exists."
+            )
+
+        return value

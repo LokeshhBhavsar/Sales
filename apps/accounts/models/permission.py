@@ -1,0 +1,84 @@
+import uuid
+
+from django.db import models
+
+from apps.masters.models.company import Company
+from apps.masters.models.plant import Plant
+from apps.masters.models.department import Department
+
+
+class Permission(models.Model):
+
+    SCOPE_CHOICES = (
+        ("company", "Company"),
+        ("plant", "Plant"),
+        ("department", "Department"),
+    )
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        default= "company"
+    )
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+     
+    )
+
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        
+        
+    )
+
+    scope = models.CharField(
+        max_length=20,
+        choices=SCOPE_CHOICES,
+         default="company",
+    )
+
+    module = models.CharField(max_length=100)
+
+    action = models.CharField(max_length=100)
+
+    code = models.CharField(max_length=100)
+
+    description = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    class Meta:
+        db_table = "permissions"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "company",
+                    "plant",
+                    "department",
+                    "module",
+                    "action"
+                ],
+                name="unique_permission_scope"
+            )
+        ]
