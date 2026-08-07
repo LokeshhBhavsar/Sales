@@ -1,29 +1,21 @@
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 
 from apps.accounts.permissions import IsSuperAdmin
 
-from apps.accounts.models.permission import Permission
-
 from apps.accounts.serializers.permission_serializer import (
     PermissionCreateSerializer,
-    
+    PermissionSerializer,
 )
 
-from apps.accounts.services.permission_service import (
-    PermissionService,
-)
+from apps.accounts.services.permission_service import PermissionService
+
+from apps.accounts.models.permission import Permission
 
 
 class PermissionView(APIView):
-    """
-    Permission APIs
-
-    POST -> Create Permission
-    GET  -> List Permissions
-    """
 
     permission_classes = [
         IsAuthenticated,
@@ -31,9 +23,6 @@ class PermissionView(APIView):
     ]
 
     def post(self, request):
-        """
-        Create Permission
-        """
 
         serializer = PermissionCreateSerializer(
             data=request.data
@@ -47,38 +36,68 @@ class PermissionView(APIView):
             serializer.validated_data
         )
 
-        return Response(
-            {
-                "success": True,
-                "message": "Permission created successfully.",
-                "data": PermissionCreateSerializer(
-                    permission
-                ).data
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return Response({
+
+            "success": True,
+
+            "message": "Permission created successfully.",
+
+            "data": PermissionSerializer(
+                permission
+            ).data
+
+        }, status=status.HTTP_201_CREATED)
 
     def get(self, request):
-        """
-        List All Permissions
-        """
 
-        permissions = Permission.objects.all().order_by(
+        permissions = Permission.objects.select_related(
+            "company",
+            "plant",
+            "department"
+        ).order_by(
             "module",
             "action"
         )
 
-        serializer = PermissionCreateSerializer(
+        serializer = PermissionSerializer(
             permissions,
             many=True
         )
 
-        return Response(
-            {
-                "success": True,
-                "message": "Permission list fetched successfully.",
-                "count": permissions.count(),
-                "data": serializer.data,
-            },
-            status=status.HTTP_200_OK
+        return Response({
+
+            "success": True,
+
+            "count": permissions.count(),
+
+            "data": serializer.data
+
+        })
+
+
+class PermissionListAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get(self, request):
+
+        permissions = PermissionService.get_permissions_for_user(
+            request.user
         )
+
+        serializer = PermissionSerializer(
+            permissions,
+            many=True
+        )
+
+        return Response({
+
+            "success": True,
+
+            "count": permissions.count(),
+
+            "data": serializer.data
+
+        })

@@ -5,6 +5,7 @@ from apps.accounts.view.refresh_token_view import RefreshTokenView
 from apps.accounts.view.logout_view import LogoutView
 from apps.accounts.view.permission_view import (
     PermissionView,
+    PermissionListAPIView
 )
 from apps.accounts.view.role_view import (
     RoleCreateView,
@@ -13,6 +14,7 @@ from apps.accounts.view.role_view import (
 )
 from apps.accounts.view.role_permission_view import (
     RolePermissionView,
+   
 )
 
 from apps.accounts.view.user_permission_view import (
@@ -28,12 +30,12 @@ urlpatterns = [
     path(
         "/login",
         LoginView.as_view(),
-        name="login"
+        name="login",
     ),
     path(
         "/refresh-token",
         RefreshTokenView.as_view(),
-        name="refresh-token"
+        name="refresh-token",
     ),
     path(
         "/logout",
@@ -46,9 +48,15 @@ urlpatterns = [
     # =====================================================
 
     path(
-        "permissions/",
+        "/create-permissions/",
         PermissionView.as_view(),
         name="permission-list-create",
+    ),
+
+    path(
+        "/permissions/",
+        PermissionListAPIView.as_view(),
+        name="permission-list",
     ),
 
     # =====================================================
@@ -56,7 +64,7 @@ urlpatterns = [
     # =====================================================
 
     path(
-        "roles/permissions/",
+        "/roles/permissions/",
         RolePermissionView.as_view(),
         name="role-permission-list-create",
     ),
