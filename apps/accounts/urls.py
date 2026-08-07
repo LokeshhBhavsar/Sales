@@ -64,7 +64,7 @@ urlpatterns = [
     # =====================================================
 
     path(
-        "/roles/permissions/",
+        "/roles/assignpermission/",
         RolePermissionView.as_view(),
         name="role-permission-list-create",
     ),

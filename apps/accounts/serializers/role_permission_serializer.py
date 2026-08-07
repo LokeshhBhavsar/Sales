@@ -6,21 +6,15 @@ from apps.accounts.models.role_permission import RolePermission
 
 
 class RolePermissionAssignSerializer(serializers.Serializer):
-    """
-    Assign Permission to Role
-    """
 
     role_id = serializers.UUIDField()
     permission_id = serializers.UUIDField()
 
     def validate(self, attrs):
 
-        role_id = attrs.get("role_id")
-        permission_id = attrs.get("permission_id")
-
         try:
             role = Role.objects.get(
-                id=role_id,
+                id=attrs["role_id"],
                 is_active=True
             )
         except Role.DoesNotExist:
@@ -30,12 +24,49 @@ class RolePermissionAssignSerializer(serializers.Serializer):
 
         try:
             permission = Permission.objects.get(
-                id=permission_id
+                id=attrs["permission_id"]
             )
         except Permission.DoesNotExist:
             raise serializers.ValidationError({
                 "permission_id": "Permission not found."
             })
+
+        # -----------------------------------
+        # Same Company
+        # -----------------------------------
+
+        if role.company_id != permission.company_id:
+
+            raise serializers.ValidationError({
+                "company":
+                "Role and Permission belong to different companies."
+            })
+
+        # -----------------------------------
+        # Plant Validation
+        # -----------------------------------
+
+        if permission.scope == "plant":
+
+            if role.plant_id != permission.plant_id:
+
+                raise serializers.ValidationError({
+                    "plant":
+                    "Role and Permission belong to different plants."
+                })
+
+        # -----------------------------------
+        # Department Validation
+        # -----------------------------------
+
+        if permission.scope == "department":
+
+            if role.department_id != permission.department_id:
+
+                raise serializers.ValidationError({
+                    "department":
+                    "Role and Permission belong to different departments."
+                })
 
         if RolePermission.objects.filter(
             role=role,
@@ -43,7 +74,8 @@ class RolePermissionAssignSerializer(serializers.Serializer):
         ).exists():
 
             raise serializers.ValidationError({
-                "permission": "Permission already assigned to this role."
+                "permission":
+                "Permission already assigned."
             })
 
         attrs["role"] = role
@@ -51,12 +83,45 @@ class RolePermissionAssignSerializer(serializers.Serializer):
 
         return attrs
 
-
-    
 class RolePermissionSerializer(serializers.ModelSerializer):
 
-    role = serializers.CharField(
+    role_id = serializers.UUIDField(
+        source="role.id",
+        read_only=True
+    )
+
+    role_name = serializers.CharField(
         source="role.name",
+        read_only=True
+    )
+
+    company = serializers.CharField(
+        source="permission.company.name",
+        read_only=True
+    )
+
+    plant = serializers.CharField(
+        source="permission.plant.name",
+        read_only=True
+    )
+
+    department = serializers.CharField(
+        source="permission.department.name",
+        read_only=True
+    )
+
+    scope = serializers.CharField(
+        source="permission.scope",
+        read_only=True
+    )
+
+    module = serializers.CharField(
+        source="permission.module",
+        read_only=True
+    )
+
+    action = serializers.CharField(
+        source="permission.action",
         read_only=True
     )
 
@@ -69,7 +134,14 @@ class RolePermissionSerializer(serializers.ModelSerializer):
         model = RolePermission
         fields = [
             "id",
-            "role",
+            "role_id",
+            "role_name",
+            "company",
+            "plant",
+            "department",
+            "scope",
+            "module",
+            "action",
             "permission",
             "created_at",
         ]

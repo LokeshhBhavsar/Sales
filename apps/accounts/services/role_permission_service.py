@@ -10,9 +10,6 @@ class RolePermissionService:
     @staticmethod
     @transaction.atomic
     def assign_permission(validated_data):
-        """
-        Assign Permission to Role
-        """
 
         role = validated_data["role"]
         permission = validated_data["permission"]
@@ -23,22 +20,33 @@ class RolePermissionService:
         ).exists():
 
             raise ValidationError({
-                "permission": "Permission already assigned to this role."
+                "permission": "Permission already assigned."
             })
 
-        role_permission = RolePermission.objects.create(
+        return RolePermission.objects.create(
             role=role,
             permission=permission
         )
 
-        return role_permission
+    @staticmethod
+    def get_role_permissions(role_id):
+
+        return RolePermission.objects.select_related(
+            "role",
+            "permission",
+            "permission__company",
+            "permission__plant",
+            "permission__department"
+        ).filter(
+            role_id=role_id
+        ).order_by(
+            "permission__module",
+            "permission__action"
+        )
 
     @staticmethod
     @transaction.atomic
     def remove_permission(role, permission):
-        """
-        Remove Permission from Role
-        """
 
         deleted, _ = RolePermission.objects.filter(
             role=role,
@@ -47,7 +55,8 @@ class RolePermissionService:
 
         if deleted == 0:
             raise ValidationError({
-                "permission": "Permission is not assigned to this role."
+                "permission":
+                "Permission is not assigned."
             })
 
         return True

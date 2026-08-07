@@ -15,13 +15,7 @@ from apps.accounts.serializers.role_permission_serializer import (
 from apps.accounts.services.role_permission_service import (
     RolePermissionService,
 )
-
-
 class RolePermissionView(APIView):
-    """
-    POST -> Assign Permission to Role
-    GET  -> List Role Permissions
-    """
 
     permission_classes = [
         IsAuthenticated,
@@ -38,42 +32,42 @@ class RolePermissionView(APIView):
             raise_exception=True
         )
 
-        role_permission = (
-            RolePermissionService.assign_permission(
-                serializer.validated_data
-            )
+        role_permission = RolePermissionService.assign_permission(
+            serializer.validated_data
         )
 
-        return Response(
-            {
-                "success": True,
-                "message": "Permission assigned successfully.",
-                "data": RolePermissionSerializer(
-                    role_permission
-                ).data
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return Response({
+            "success": True,
+            "message": "Permission assigned successfully.",
+            "data": RolePermissionSerializer(
+                role_permission
+            ).data
+        })
 
     def get(self, request):
 
+        role_id = request.query_params.get("role_id")
+
         queryset = RolePermission.objects.select_related(
             "role",
-            "permission"
-        ).order_by(
-            "role__name",
-            "permission__module",
+            "permission",
+            "permission__company",
+            "permission__plant",
+            "permission__department"
         )
+
+        if role_id:
+            queryset = queryset.filter(
+                role_id=role_id
+            )
 
         serializer = RolePermissionSerializer(
             queryset,
             many=True
         )
 
-        return Response(
-            {
-                "success": True,
-                "count": queryset.count(),
-                "data": serializer.data,
-            }
-        )
+        return Response({
+            "success": True,
+            "count": queryset.count(),
+            "data": serializer.data
+        })
