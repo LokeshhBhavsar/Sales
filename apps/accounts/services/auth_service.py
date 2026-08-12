@@ -1,485 +1,591 @@
-# from django.contrib.auth import get_user_model
-# from django.db.models import Prefetch
-# from django.utils import timezone
-# from rest_framework.exceptions import AuthenticationFailed
 
-# from apps.accounts.models.user_role import UserRole
-# from apps.accounts.models.user_permission import UserPermission
+# apps/accounts/services/auth_service.py
+
+# from django.db import transaction
+# from django.contrib.auth import authenticate
+
+# from rest_framework.exceptions import AuthenticationFailed, ValidationError
+
+# from apps.accounts.models import User
+# from apps.accounts.models.user_session import UserSession
 
 # from apps.accounts.services.jwt_service import JWTService
-# from apps.accounts.services.session_service import SessionService
-# from apps.accounts.services.audit_service import AuditService
-
-
-# User = get_user_model()
 
 
 # class AuthService:
+#     """
+#     Authentication Service
+
+#     Responsibilities:
+#         - Login
+#         - Generate JWT tokens
+#         - Create user session
+#         - Refresh token
+#         - Logout
+#         - Get current user
+#     """
+
+#     # =========================================================
+#     # LOGIN
+#     # =========================================================
 
 #     @staticmethod
-#     def login(email,password,request):
+#     @transaction.atomic
+#     def login(email, password, request=None):
 #         """
-#         Authenticate User and Create Login Session
+#         Authenticate user and create login session.
 #         """
+
+#         email = email.strip().lower()
+
+#         # -----------------------------------------------------
+#         # Find User
+#         # -----------------------------------------------------
+
 #         try:
-#             user = (
-#             User.objects.select_related(
+#             user = User.objects.select_related(
 #                 "company",
 #                 "plant",
-#                 "department"
-#             ).prefetch_related(
-#                 Prefetch(
-#                     "userrole_set",
-#                     queryset=UserRole.objects.select_related("role")
-#                 ),
-#                 Prefetch(
-#                     "userpermission_set",
-#                     queryset=UserPermission.objects.select_related("permission")
-#                 )
+#                 "department",
+#                 "employee",
+#             ).get(
+#                 email=email
 #             )
-#             .get(email=email)
-#             )
+
 #         except User.DoesNotExist:
-
-#             AuditService.failed_login(
-#                 email=email,
-#                 request=request
-#             )
-
 #             raise AuthenticationFailed(
-#                 "USER DOES NOZT EXIST."
-#             )
-#         #.....................................................
-#         # verify password
-#         #.....................................................
-#         if not user.check_password(password):
-#             AuditService.failed_login(
-#                 email=email,
-#                 request=request
-
-#             )
-#             raise AuthenticationFailed(
-#                 "Invalid Password"
+#                 "Invalid email or password."
 #             )
 
-#         #check active user
+#         # -----------------------------------------------------
+#         # Check Active
+#         # -----------------------------------------------------
+
 #         if not user.is_active:
 #             raise AuthenticationFailed(
-#                 "Your account has been Deactivate"
-#             )
-#  # ---------------------------------------------------------
-#         # Update Last Login
-#         # ---------------------------------------------------------
-
-#         user.last_login = timezone.now()
-
-#         user.save(
-#             update_fields=[
-#                 "last_login"
-#             ]
-#         )
-#                 # ---------------------------------------------------------
-#         # Load Roles
-#         # ---------------------------------------------------------
-
-#         roles = [
-
-#             {
-#                 "id": str(item.role.id),
-#                 "name": item.role.name,
-#                 "code": item.role.code
-#             }
-
-#             for item in user.userrole_set.all()
-
-#         ]
-
-#     # ---------------------------------------------------------
-#         # Load Role Permissions
-#         # ---------------------------------------------------------
-
-#         role_permissions = set()
-
-#         for user_role in user.userrole_set.all():
-
-#             permissions = role_permissions.objects.filter(
-#                 role=user_role.role
-#             ).select_related(
-#                 "permission"
+#                 "User account is inactive."
 #             )
 
-#             for permission in permissions:
+#         # -----------------------------------------------------
+#         # Check Password
+#         # -----------------------------------------------------
 
-#                 role_permissions.add(
-#                     permission.permission.code
-#                 )
-
-#         # ---------------------------------------------------------
-#         # Load Direct User Permissions
-#         # ---------------------------------------------------------
-
-#         direct_permissions = {
-
-#             item.permission.code
-
-#             for item in user.userpermission_set.all()
-
-#         }
-
-#         # ---------------------------------------------------------
-#         # Merge Role + Direct Permissions
-#         # Remove Duplicate Permissions
-#         # ---------------------------------------------------------
-
-#         permissions = sorted(
-
-#             role_permissions.union(
-#                 direct_permissions
+#         if not user.check_password(password):
+#             raise AuthenticationFailed(
+#                 "Invalid email or password."
 #             )
 
-#         )
+#         # -----------------------------------------------------
+#         # Generate Tokens
+#         # -----------------------------------------------------
 
-#         #generate token
 #         access_token = JWTService.generate_access_token(
-#             user
-#         )
-#         refresh_token = JWTService.generate_refresh_token(
-#             user
+#             user=user
 #         )
 
-#         #.......................................................
+#         refresh_token = JWTService.generate_refresh_token(
+#             user=user
+#         )
+
+#         # -----------------------------------------------------
 #         # Create Session
-#         #.......................................................
-#         SessionService.create_user_session(
+#         # -----------------------------------------------------
+
+#         session = AuthService.create_session(
 #             user=user,
 #             refresh_token=refresh_token,
 #             request=request
 #         )
-#         # -----------------------------------
-#         # Audit Log
-#         # -----------------------------------
-#         AuditService.login(
+
+#         # -----------------------------------------------------
+#         # Response
+#         # -----------------------------------------------------
+
+#         return {
+#             "user": user,
+#             "access_token": access_token,
+#             "refresh_token": refresh_token,
+#             "session": session,
+#         }
+
+#     # =========================================================
+#     # CREATE SESSION
+#     # =========================================================
+
+#     @staticmethod
+#     def create_session(
+#         user,
+#         refresh_token,
+#         request=None
+#     ):
+#         """
+#         Create user login session.
+#         """
+
+#         ip_address = None
+#         user_agent = None
+
+#         if request:
+
+#             # -------------------------------------------------
+#             # IP Address
+#             # -------------------------------------------------
+
+#             x_forwarded_for = request.META.get(
+#                 "HTTP_X_FORWARDED_FOR"
+#             )
+
+#             if x_forwarded_for:
+#                 ip_address = (
+#                     x_forwarded_for.split(",")[0]
+#                     .strip()
+#                 )
+
+#             else:
+#                 ip_address = request.META.get(
+#                     "REMOTE_ADDR"
+#                 )
+
+#             # -------------------------------------------------
+#             # User Agent
+#             # -------------------------------------------------
+
+#             user_agent = request.META.get(
+#                 "HTTP_USER_AGENT"
+#             )
+
+#         # -----------------------------------------------------
+#         # Create Session
+#         # -----------------------------------------------------
+
+#         session = UserSession.objects.create(
 #             user=user,
-#             request=request
+#             refresh_token=refresh_token,
+#             ip_address=ip_address,
+#             user_agent=user_agent,
+#             is_active=True,
 #         )
 
-#        # -----------------------------------
-#        # Roles
-#        # -----------------------------------
-#         roles =[
-#            {
-#              "id" : str(item.role.id),
-#              "name": item.role.name,
-#              "code": item.role.code
-#            }
-#            for item in user.userrole_set.all()
-#        ]
-  
-#         # -----------------------------------
-#         # Response
-#         # -----------------------------------
+#         return session
+
+#     # =========================================================
+#     # REFRESH TOKEN
+#     # =========================================================
+
+#     @staticmethod
+#     @transaction.atomic
+#     def refresh_token(refresh_token):
+#         """
+#         Validate refresh token and generate
+#         a new access token.
+#         """
+
+#         # -----------------------------------------------------
+#         # Verify Refresh Token
+#         # -----------------------------------------------------
+
+#         payload = JWTService.verify_refresh_token(
+#             refresh_token
+#         )
+
+#         user_id = payload.get("user_id")
+
+#         if not user_id:
+#             raise AuthenticationFailed(
+#                 "Invalid refresh token."
+#             )
+
+#         # -----------------------------------------------------
+#         # Get User
+#         # -----------------------------------------------------
+
+#         try:
+
+#             user = User.objects.select_related(
+#                 "company",
+#                 "plant",
+#                 "department",
+#                 "employee",
+#             ).get(
+#                 id=user_id
+#             )
+
+#         except User.DoesNotExist:
+
+#             raise AuthenticationFailed(
+#                 "User not found."
+#             )
+
+#         # -----------------------------------------------------
+#         # Check User
+#         # -----------------------------------------------------
+
+#         if not user.is_active:
+
+#             raise AuthenticationFailed(
+#                 "User account is inactive."
+#             )
+
+#         # -----------------------------------------------------
+#         # Check Session
+#         # -----------------------------------------------------
+
+#         session = UserSession.objects.filter(
+#             user=user,
+#             refresh_token=refresh_token,
+#             is_active=True,
+#         ).first()
+
+#         if not session:
+
+#             raise AuthenticationFailed(
+#                 "Session expired or logged out."
+#             )
+
+#         # -----------------------------------------------------
+#         # Generate New Access Token
+#         # -----------------------------------------------------
+
+#         access_token = JWTService.generate_access_token(
+#             user=user
+#         )
+
 #         return {
-#         "success":True,
-#         "message":"Login Successful",
-#         "data":{
-#           "user":{
-#               "id": str(user.id),
-#               "email": user.email,
-#               "first_name":user.first_name,
-#               "last_name":user.last_name,
-#               "full_name": user.full_name,
-#               "company":{
-#                   "id":str(user.company.id),
-#                   "name":user.company.name
-#               }
-#               if user.company else None,
-#               "plant":{
-#                   "id":str(user.plant.id),
-#                   "name":user.plant.name
-#               } if user.plant else None,
-#               "department": {
-#                   "id":str(user.department.id),
-#                   "name":user.department.name
-#               } if user.department else None,
-#           },
-#           "roles": roles,
-#           "permissions":permissions,
-#           "access_token": access_token,
-#           "refresh_token": refresh_token
+#             "user": user,
+#             "access_token": access_token,
 #         }
-#     }
+
+#     # =========================================================
+#     # LOGOUT
+#     # =========================================================
+
+#     @staticmethod
+#     @transaction.atomic
+#     def logout(user, refresh_token=None):
+#         """
+#         Logout user.
+
+#         If refresh_token is supplied:
+#             deactivate only that session.
+
+#         Otherwise:
+#             deactivate all sessions.
+#         """
+
+#         if refresh_token:
+
+#             updated = UserSession.objects.filter(
+#                 user=user,
+#                 refresh_token=refresh_token,
+#                 is_active=True,
+#             ).update(
+#                 is_active=False
+#             )
+
+#         else:
+
+#             updated = UserSession.objects.filter(
+#                 user=user,
+#                 is_active=True,
+#             ).update(
+#                 is_active=False
+#             )
+
+#         return updated
+
+#     # =========================================================
+#     # GET CURRENT USER
+#     # =========================================================
+
+#     @staticmethod
+#     def get_current_user(user_id):
+#         """
+#         Get currently authenticated user.
+#         """
+
+#         try:
+
+#             user = User.objects.select_related(
+#                 "company",
+#                 "plant",
+#                 "department",
+#                 "employee",
+#             ).get(
+#                 id=user_id
+#             )
+
+#         except User.DoesNotExist:
+
+#             raise AuthenticationFailed(
+#                 "User not found."
+#             )
+
+#         if not user.is_active:
+
+#             raise AuthenticationFailed(
+#                 "User account is inactive."
+#             )
+
+#         return user
 
 
+from datetime import datetime, timezone as dt_timezone
 
-from django.contrib.auth import get_user_model
-from django.db.models import Prefetch
+from django.db import transaction
 from django.utils import timezone
 
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    ValidationError,
+)
 
-from apps.accounts.models.user_role import UserRole
-from apps.accounts.models.user_permission import UserPermission
-from apps.accounts.models.role_permission import RolePermission
-
+from apps.accounts.models import User
 from apps.accounts.models.user_session import UserSession
 from apps.accounts.services.jwt_service import JWTService
-from apps.accounts.services.session_service import SessionService
-from apps.accounts.services.audit_service  import AuditService  
-
-
-User = get_user_model()
 
 
 class AuthService:
+    """
+    Authentication Service
+
+    Responsibilities:
+        - Login
+        - Generate JWT tokens
+        - Create user session
+        - Refresh token
+        - Logout
+        - Get current user
+    """
+
+    # =========================================================
+    # LOGIN
+    # =========================================================
 
     @staticmethod
-    def login(email, password, request):
+    @transaction.atomic
+    def login(email, password, request=None):
         """
         Authenticate user and create login session.
         """
 
-        # -------------------------------------------------
-        # Get User
-        # -------------------------------------------------
+        email = email.strip().lower()
+
+        # -----------------------------------------------------
+        # Find User
+        # -----------------------------------------------------
 
         try:
-
-            user = (
-                User.objects
-                .select_related(
-                    "company",
-                    "plant",
-                    "department"
-                )
-                .prefetch_related(
-
-                    Prefetch(
-                        "userrole_set",
-                        queryset=UserRole.objects.select_related("role")
-                    ),
-
-                    Prefetch(
-                        "userpermission_set",
-                        queryset=UserPermission.objects.select_related("permission")
-                    )
-
-                )
-                .get(email=email)
+            user = User.objects.select_related(
+                "company",
+                "plant",
+                "department",
+                "employee",
+            ).get(
+                email=email
             )
 
         except User.DoesNotExist:
-
-            AuditService.failed_login(
-                email=email,
-                request=request
-            )
-
             raise AuthenticationFailed(
                 "Invalid email or password."
             )
 
-        # -------------------------------------------------
-        # Verify Password
-        # -------------------------------------------------
-
-        if not user.check_password(password):
-
-            AuditService.failed_login(
-                email=email,
-                request=request
-            )
-
-            raise AuthenticationFailed(
-                "Invalid email or password."
-            )
-
-        # -------------------------------------------------
-        # Check User Active
-        # -------------------------------------------------
+        # -----------------------------------------------------
+        # Check Active
+        # -----------------------------------------------------
 
         if not user.is_active:
-
             raise AuthenticationFailed(
-                "Your account has been deactivated."
+                "User account is inactive."
             )
 
-        # -------------------------------------------------
-        # Update Last Login
-        # -------------------------------------------------
+        # -----------------------------------------------------
+        # Check Password
+        # -----------------------------------------------------
 
-        user.last_login = timezone.now()
-
-        user.save(
-            update_fields=[
-                "last_login"
-            ]
-        )
-
-        # -------------------------------------------------
-        # User Roles
-        # -------------------------------------------------
-
-        roles = [
-
-            {
-                "id": str(item.role.id),
-                "name": item.role.name,
-                "code": item.role.code
-            }
-
-            for item in user.userrole_set.all()
-
-        ]
-
-        # -------------------------------------------------
-        # Role Permissions
-        # -------------------------------------------------
-
-        role_permissions = set()
-
-        for user_role in user.userrole_set.all():
-
-            permissions = (
-                RolePermission.objects
-                .filter(role=user_role.role)
-                .select_related("permission")
+        if not user.check_password(password):
+            raise AuthenticationFailed(
+                "Invalid email or password."
             )
 
-            for permission in permissions:
-
-                role_permissions.add(
-                    permission.permission.code
-                )
-
-        # -------------------------------------------------
-        # Direct User Permissions
-        # -------------------------------------------------
-
-        direct_permissions = {
-
-            item.permission.code
-
-            for item in user.userpermission_set.all()
-
-        }
-
-        # -------------------------------------------------
-        # Merge Permissions
-        # -------------------------------------------------
-
-        permissions = sorted(
-            role_permissions.union(
-                direct_permissions
-            )
-        )
-
-        # -------------------------------------------------
-        # Generate JWT Tokens
-        # -------------------------------------------------
+        # -----------------------------------------------------
+        # Generate Access Token
+        # -----------------------------------------------------
 
         access_token = JWTService.generate_access_token(
-            user
+            user=user
         )
+
+        # -----------------------------------------------------
+        # Generate Refresh Token
+        # -----------------------------------------------------
 
         refresh_token = JWTService.generate_refresh_token(
-            user
+            user=user
         )
 
-        # -------------------------------------------------
-        # Create User Session
-        # -------------------------------------------------
+        # -----------------------------------------------------
+        # Create Session
+        # -----------------------------------------------------
 
-        SessionService.create_user_session(
+        session = AuthService.create_session(
             user=user,
             refresh_token=refresh_token,
-            request=request
+            request=request,
         )
 
-        # -------------------------------------------------
-        # Audit Log
-        # -------------------------------------------------
-
-        AuditService.login(
-            user=user,
-            request=request
-        )
-
-        # -------------------------------------------------
+        # -----------------------------------------------------
         # Response
-        # -------------------------------------------------
+        # -----------------------------------------------------
 
         return {
-
-            "success": True,
-
-            "message": "Login Successful",
-
-            "data": {
-
-                "user": {
-
-                    "id": str(user.id),
-
-                    "email": user.email,
-
-                    "first_name": user.first_name,
-
-                    "last_name": user.last_name,
-
-                    "full_name": user.full_name,
-
-                    "company": {
-
-                        "id": str(user.company.id),
-
-                        "name": user.company.name
-
-                    } if user.company else None,
-
-                    "plant": {
-
-                        "id": str(user.plant.id),
-
-                        "name": user.plant.name
-
-                    } if user.plant else None,
-
-                    "department": {
-
-                        "id": str(user.department.id),
-
-                        "name": user.department.name
-
-                    } if user.department else None,
-
-                },
-
-                "roles": roles,
-
-                "permissions": permissions,
-
-                "access_token": access_token,
-
-                "refresh_token": refresh_token
-
-            }
-
+            "user": user,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "session": session,
         }
 
-
+    # =========================================================
+    # CREATE SESSION
+    # =========================================================
 
     @staticmethod
-    def refresh_token(
+    def create_session(
+        user,
         refresh_token,
-        request
+        request=None,
     ):
         """
-        Validate refresh token and generate new tokens.
+        Create user login session.
         """
 
-        # ---------------------------------------------------------
-        # Decode Refresh Token
-        # ---------------------------------------------------------
+        # -----------------------------------------------------
+        # Default Values
+        # -----------------------------------------------------
+
+        ip_address = "127.0.0.1"
+        user_agent = ""
+        device_type = "unknown"
+        device_name = "unknown"
+
+        # -----------------------------------------------------
+        # Request Information
+        # -----------------------------------------------------
+
+        if request:
+
+            # -------------------------------------------------
+            # IP Address
+            # -------------------------------------------------
+
+            x_forwarded_for = request.META.get(
+                "HTTP_X_FORWARDED_FOR"
+            )
+
+            if x_forwarded_for:
+
+                ip_address = (
+                    x_forwarded_for
+                    .split(",")[0]
+                    .strip()
+                )
+
+            else:
+
+                ip_address = request.META.get(
+                    "REMOTE_ADDR",
+                    "127.0.0.1",
+                )
+
+            # -------------------------------------------------
+            # User Agent
+            # -------------------------------------------------
+
+            user_agent = request.META.get(
+                "HTTP_USER_AGENT",
+                "",
+            )
+
+            # -------------------------------------------------
+            # Device Detection
+            # -------------------------------------------------
+
+            if "PostmanRuntime" in user_agent:
+
+                device_type = "api"
+                device_name = "Postman"
+
+            elif "Mobile" in user_agent:
+
+                device_type = "mobile"
+                device_name = "Mobile Browser"
+
+            elif "Mozilla" in user_agent:
+
+                device_type = "browser"
+                device_name = "Web Browser"
+
+            else:
+
+                device_type = "unknown"
+                device_name = "unknown"
+
+        # -----------------------------------------------------
+        # Verify Refresh Token
+        # -----------------------------------------------------
+
+        payload = JWTService.verify_refresh_token(
+            refresh_token
+        )
+
+        # -----------------------------------------------------
+        # Get Refresh Token Expiration
+        # -----------------------------------------------------
+
+        expires_at = datetime.fromtimestamp(
+            payload["exp"],
+            tz=dt_timezone.utc,
+        )
+
+        # -----------------------------------------------------
+        # Create Session
+        # -----------------------------------------------------
+
+        session = UserSession.objects.create(
+            user=user,
+
+            refresh_token=refresh_token,
+
+            device_type=device_type,
+            device_name=device_name,
+
+            user_agent=user_agent,
+
+            ip_address=ip_address,
+
+            is_active=True,
+
+            expires_at=expires_at,
+
+            last_activity=timezone.now(),
+        )
+
+        return session
+
+    # =========================================================
+    # REFRESH TOKEN
+    # =========================================================
+
+    @staticmethod
+    @transaction.atomic
+    def refresh_token(refresh_token):
+        """
+        Validate refresh token and generate
+        a new access token.
+        """
+
+        # -----------------------------------------------------
+        # Verify Refresh Token
+        # -----------------------------------------------------
 
         payload = JWTService.verify_refresh_token(
             refresh_token
@@ -492,142 +598,186 @@ class AuthService:
                 "Invalid refresh token."
             )
 
-        # ---------------------------------------------------------
-        # Get Active Session
-        # ---------------------------------------------------------
+        # -----------------------------------------------------
+        # Get User
+        # -----------------------------------------------------
 
-        session = UserSession.objects.select_related(
-            "user"
-        ).filter(
-            user_id=user_id,
-            is_active=True
-        ).first()
+        try:
 
-        if not session:
-            raise AuthenticationFailed(
-                "Session not found."
+            user = User.objects.select_related(
+                "company",
+                "plant",
+                "department",
+                "employee",
+            ).get(
+                id=user_id
             )
 
-        # ---------------------------------------------------------
-        # Verify Refresh Token Hash
-        # ---------------------------------------------------------
+        except User.DoesNotExist:
 
-        token_hash = SessionService.hash_refresh_token(
-            refresh_token
-        )
-
-        if session.refresh_token_hash != token_hash:
             raise AuthenticationFailed(
-                "Invalid refresh token."
+                "User not found."
             )
 
-        # ---------------------------------------------------------
-        # Check User Status
-        # ---------------------------------------------------------
-
-        user = session.user
+        # -----------------------------------------------------
+        # Check User
+        # -----------------------------------------------------
 
         if not user.is_active:
+
             raise AuthenticationFailed(
-                "Your account has been deactivated."
+                "User account is inactive."
             )
 
-        # ---------------------------------------------------------
-        # Generate New Tokens
-        # ---------------------------------------------------------
-
-        new_access_token = JWTService.generate_access_token(
-            user
-        )
-
-        new_refresh_token = JWTService.generate_refresh_token(
-            user
-        )
-
-        # ---------------------------------------------------------
-        # Update Session
-        # ---------------------------------------------------------
-
-        session.refresh_token_hash = SessionService.hash_refresh_token(
-            new_refresh_token
-        )
-
-        session.save(
-            update_fields=[
-                "refresh_token_hash"
-            ]
-        )
-
-        # ---------------------------------------------------------
-        # Response
-        # ---------------------------------------------------------
-
-        return {
-
-            "success": True,
-
-            "message": "Access token refreshed successfully.",
-
-            "data": {
-
-                "access_token": new_access_token,
-
-                "refresh_token": new_refresh_token
-
-            }
-
-        }   
-
-    def logout(
-        user,
-        refresh_token,
-        request
-    ):
-        """
-        Logout user and deactivate the current session.
-        """
-
-        token_hash = SessionService.hash_refresh_token(
-            refresh_token
-        )
+        # -----------------------------------------------------
+        # Check Session
+        # -----------------------------------------------------
 
         session = UserSession.objects.filter(
             user=user,
-            refresh_token_hash=token_hash,
-            is_active=True
+            refresh_token=refresh_token,
+            is_active=True,
         ).first()
 
         if not session:
+
             raise AuthenticationFailed(
-                "Session not found."
+                "Session expired or logged out."
             )
 
-        # -----------------------------------------
-        # Deactivate Session
-        # -----------------------------------------
+        # -----------------------------------------------------
+        # Check Session Expiration
+        # -----------------------------------------------------
 
-        session.is_active = False
-        session.logged_out_at = timezone.now()
+        if session.expires_at <= timezone.now():
+
+            session.is_active = False
+
+            session.logged_out_at = timezone.now()
+
+            session.save(
+                update_fields=[
+                    "is_active",
+                    "logged_out_at",
+                ]
+            )
+
+            raise AuthenticationFailed(
+                "Session has expired."
+            )
+
+        # -----------------------------------------------------
+        # Update Last Activity
+        # -----------------------------------------------------
+
         session.last_activity = timezone.now()
 
         session.save(
             update_fields=[
-                "is_active",
-                "logged_out_at",
-                "last_activity",
+                "last_activity"
             ]
         )
 
-        # -----------------------------------------
-        # Audit Log
-        # -----------------------------------------
+        # -----------------------------------------------------
+        # Generate New Access Token
+        # -----------------------------------------------------
 
-        AuditService.logout(
-            user=user,
-            request=request
+        access_token = JWTService.generate_access_token(
+            user=user
         )
 
         return {
-            "success": True,
-            "message": "Logout successful."
+            "user": user,
+            "access_token": access_token,
         }
+
+    # =========================================================
+    # LOGOUT
+    # =========================================================
+
+    @staticmethod
+    @transaction.atomic
+    def logout(
+        user,
+        refresh_token=None,
+    ):
+        """
+        Logout user.
+
+        If refresh_token is supplied:
+            deactivate only that session.
+
+        Otherwise:
+            deactivate all active sessions.
+        """
+
+        # -----------------------------------------------------
+        # Logout Specific Session
+        # -----------------------------------------------------
+
+        if refresh_token:
+
+            updated = UserSession.objects.filter(
+                user=user,
+                refresh_token=refresh_token,
+                is_active=True,
+            ).update(
+                is_active=False,
+                logged_out_at=timezone.now(),
+            )
+
+        # -----------------------------------------------------
+        # Logout All Sessions
+        # -----------------------------------------------------
+
+        else:
+
+            updated = UserSession.objects.filter(
+                user=user,
+                is_active=True,
+            ).update(
+                is_active=False,
+                logged_out_at=timezone.now(),
+            )
+
+        return updated
+
+    # =========================================================
+    # GET CURRENT USER
+    # =========================================================
+
+    @staticmethod
+    def get_current_user(user_id):
+        """
+        Get currently authenticated user.
+        """
+
+        try:
+
+            user = User.objects.select_related(
+                "company",
+                "plant",
+                "department",
+                "employee",
+            ).get(
+                id=user_id
+            )
+
+        except User.DoesNotExist:
+
+            raise AuthenticationFailed(
+                "User not found."
+            )
+
+        # -----------------------------------------------------
+        # Check Active
+        # -----------------------------------------------------
+
+        if not user.is_active:
+
+            raise AuthenticationFailed(
+                "User account is inactive."
+            )
+
+        return user
+

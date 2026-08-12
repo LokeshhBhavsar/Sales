@@ -26,7 +26,7 @@ class Permission(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        default= "company"
+        related_name="permissions",
     )
 
     plant = models.ForeignKey(
@@ -34,7 +34,7 @@ class Permission(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-     
+        related_name="permissions",
     )
 
     department = models.ForeignKey(
@@ -42,21 +42,26 @@ class Permission(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        
-        
+        related_name="permissions",
     )
 
     scope = models.CharField(
         max_length=20,
         choices=SCOPE_CHOICES,
-         default="company",
+        default="company",
     )
 
-    module = models.CharField(max_length=100)
+    module = models.CharField(
+        max_length=100
+    )
 
-    action = models.CharField(max_length=100)
+    action = models.CharField(
+        max_length=100
+    )
 
-    code = models.CharField(max_length=100)
+    code = models.CharField(
+        max_length=100
+    )
 
     description = models.TextField(
         blank=True,
@@ -77,8 +82,11 @@ class Permission(models.Model):
                     "plant",
                     "department",
                     "module",
-                    "action"
+                    "action",
                 ],
-                name="unique_permission_scope"
+                name="unique_permission_scope",
             )
         ]
+
+    def __str__(self):
+        return self.code

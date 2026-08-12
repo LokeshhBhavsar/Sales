@@ -11,22 +11,58 @@ from apps.accounts.serializers.role_serializer import (
     RoleListSerializer,
 )
 from apps.accounts.services.role_service import RoleService
+from apps.accounts.permissions import IsSuperAdmin
+
+
+# class RoleCreateView(APIView):
+
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+
+#         if not request.user.is_superuser:
+#             return Response(
+#                 {
+#                     "message": "Only Super Admin can create roles."
+#                 },
+#                 status=status.HTTP_403_FORBIDDEN,
+#             )
+
+#         serializer = RoleCreateSerializer(
+#             data=request.data
+#         )
+
+#         serializer.is_valid(
+#             raise_exception=True
+#         )
+
+#         role = RoleService.create_role(
+#             serializer.validated_data
+#         )
+
+#         return Response(
+#             {
+#                 "message": "Role created successfully.",
+#                 "data": RoleListSerializer(role).data,
+#             },
+#             status=status.HTTP_201_CREATED,
+#         )
+
 
 
 class RoleCreateView(APIView):
 
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [
+        JWTAuthentication
+    ]
+
+    permission_classes = [
+        IsAuthenticated,
+        IsSuperAdmin
+    ]
 
     def post(self, request):
-
-        if not request.user.is_superuser:
-            return Response(
-                {
-                    "message": "Only Super Admin can create roles."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         serializer = RoleCreateSerializer(
             data=request.data
@@ -42,10 +78,15 @@ class RoleCreateView(APIView):
 
         return Response(
             {
-                "message": "Role created successfully.",
-                "data": RoleListSerializer(role).data,
+                "success": True,
+                "message":
+                    "Role created successfully.",
+                "data":
+                    RoleListSerializer(
+                        role
+                    ).data
             },
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_201_CREATED
         )
 
 

@@ -23,6 +23,7 @@ from apps.accounts.view.user_permission_view import (
 
 
 from apps.accounts.view.role_view import RoleCreateView, RoleListView
+from apps.accounts.view.user_role_view import UserRoleView
 
 app_name = "accounts"
 
@@ -97,4 +98,10 @@ urlpatterns = [
         RoleDetailView.as_view(),
         name="role-detail",
     ), 
+
+    path(
+    "/users/roles/",
+    UserRoleView.as_view(),
+    name="user-role"
+),
 ]

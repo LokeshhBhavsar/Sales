@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # Local Apps
     "apps.accounts",
     "apps.masters",
+    "apps.hrms.apps.HrmsConfig",
 ]
 
 

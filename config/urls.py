@@ -27,5 +27,6 @@ urlpatterns = [
     path(
         "api/masters",
         include("apps.masters.urls")
-    )
+    ),
+    path("api/hrms", include("apps.hrms.urls"))
 ]
