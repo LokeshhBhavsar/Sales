@@ -156,10 +156,6 @@
 #             "created_at",
 #         ]
 
-
-
-
-
 from rest_framework import serializers
 
 from apps.accounts.models.permission import Permission
@@ -170,7 +166,6 @@ class PermissionCreateSerializer(
 ):
 
     class Meta:
-
         model = Permission
 
         fields = [
@@ -186,24 +181,94 @@ class PermissionCreateSerializer(
 
     def validate(self, attrs):
 
+        # =====================================================
+        # GET VALUES
+        # =====================================================
+
         company = attrs.get("company")
         plant = attrs.get("plant")
         department = attrs.get("department")
-        scope = attrs.get("scope")
 
+        scope = attrs.get("scope")
         module = attrs.get("module")
         action = attrs.get("action")
         code = attrs.get("code")
+
+        # =====================================================
+        # COMPANY VALIDATION
+        # =====================================================
 
         if not company:
             raise serializers.ValidationError({
                 "company": "Company is required."
             })
 
+        # =====================================================
+        # NORMALIZE VALUES
+        # =====================================================
+
+        if scope:
+            scope = scope.strip().lower()
+
+        if module:
+            module = module.strip().lower()
+
+        if action:
+            action = action.strip().lower()
+
+        if code:
+            code = code.strip().lower()
+
+        attrs["scope"] = scope
+        attrs["module"] = module
+        attrs["action"] = action
+
+        # =====================================================
+        # MODULE VALIDATION
+        # =====================================================
+
+        if not module:
+            raise serializers.ValidationError({
+                "module": "Module is required."
+            })
+
+        # =====================================================
+        # ACTION VALIDATION
+        # =====================================================
+
+        if not action:
+            raise serializers.ValidationError({
+                "action": "Action is required."
+            })
+
+        # =====================================================
+        # SCOPE VALIDATION
+        # =====================================================
+
+        if scope not in [
+            "company",
+            "plant",
+            "department",
+        ]:
+            raise serializers.ValidationError({
+                "scope": (
+                    "Invalid permission scope. "
+                    "Allowed values: company, plant, department."
+                )
+            })
+
+        # =====================================================
+        # COMPANY SCOPE
+        # =====================================================
+
         if scope == "company":
 
             attrs["plant"] = None
             attrs["department"] = None
+
+        # =====================================================
+        # PLANT SCOPE
+        # =====================================================
 
         elif scope == "plant":
 
@@ -214,11 +279,18 @@ class PermissionCreateSerializer(
 
             if plant.company_id != company.id:
                 raise serializers.ValidationError({
-                    "plant":
-                    "Plant does not belong to selected company."
+                    "plant": (
+                        "Plant does not belong to "
+                        "selected company."
+                    )
                 })
 
+            # Department is not allowed for plant scope
             attrs["department"] = None
+
+        # =====================================================
+        # DEPARTMENT SCOPE
+        # =====================================================
 
         elif scope == "department":
 
@@ -232,51 +304,70 @@ class PermissionCreateSerializer(
                     "department": "Department is required."
                 })
 
+            # Plant must belong to company
             if plant.company_id != company.id:
                 raise serializers.ValidationError({
-                    "plant":
-                    "Plant does not belong to selected company."
+                    "plant": (
+                        "Plant does not belong to "
+                        "selected company."
+                    )
                 })
 
+            # Department must belong to plant
             if department.plant_id != plant.id:
                 raise serializers.ValidationError({
-                    "department":
-                    "Department does not belong to selected plant."
+                    "department": (
+                        "Department does not belong to "
+                        "selected plant."
+                    )
                 })
 
-        else:
-
-            raise serializers.ValidationError({
-                "scope": "Invalid permission scope."
-            })
-
-        module = module.strip().lower()
-        action = action.strip().lower()
-
-        attrs["module"] = module
-        attrs["action"] = action
+        # =====================================================
+        # GENERATE CODE
+        # =====================================================
 
         if code:
-
-            attrs["code"] = code.strip().lower()
-
+            attrs["code"] = code
         else:
-
             attrs["code"] = f"{module}.{action}"
+
+        # =====================================================
+        # DUPLICATE CHECK
+        #
+        # IMPORTANT:
+        #
+        # Permission identity is:
+        #
+        # company
+        # + scope
+        # + plant
+        # + department
+        # + code
+        #
+        # This allows:
+        #
+        # inventory.view
+        # item.view
+        # stock.view
+        #
+        # to coexist.
+        # =====================================================
 
         duplicate = Permission.objects.filter(
             company=company,
             plant=attrs.get("plant"),
             department=attrs.get("department"),
-            module=module,
-            action=action,
+            scope=scope,
+            code=attrs["code"],
         ).exists()
 
         if duplicate:
 
             raise serializers.ValidationError({
-                "permission":
-                "Permission already exists for this scope."
+                "permission": (
+                    "Permission with this code "
+                    "already exists for this scope."
+                )
             })
 
         return attrs

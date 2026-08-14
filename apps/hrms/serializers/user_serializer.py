@@ -1,198 +1,23 @@
-# # apps/accounts/serializers/user_serializer.py
-
-# from django.contrib.auth import get_user_model
-# from rest_framework import serializers
-
-# from apps.hrms.models.employee import Employee
-# from apps.accounts.models.role import Role
-# from apps.accounts.models.user_role import UserRole
-
-
-# User = get_user_model()
-
-
-# class CreateUserSerializer(serializers.Serializer):
-
-#     employee_id = serializers.UUIDField()
-
-#     password = serializers.CharField(
-#         write_only=True,
-#         min_length=8
-#     )
-
-#     role_ids = serializers.ListField(
-#         child=serializers.UUIDField(),
-#         required=True,
-#         allow_empty=False
-#     )
-
-#     def validate(self, attrs):
-
-#         employee_id = attrs["employee_id"]
-#         role_ids = attrs["role_ids"]
-
-#         # -----------------------------------------
-#         # Employee
-#         # -----------------------------------------
-
-#         try:
-
-#             employee = Employee.objects.select_related(
-#                 "company",
-#                 "plant",
-#                 "department"
-#             ).get(
-#                 id=employee_id,
-#                 status="active"
-#             )
-
-#         except Employee.DoesNotExist:
-
-#             raise serializers.ValidationError({
-#                 "employee_id": "Active employee not found."
-#             })
-
-#         # -----------------------------------------
-#         # Employee already has User
-#         # -----------------------------------------
-
-#         if User.objects.filter(
-#             employee=employee
-#         ).exists():
-
-#             raise serializers.ValidationError({
-#                 "employee_id": "User account already exists for this employee."
-#             })
-
-#         # -----------------------------------------
-#         # Email
-#         # -----------------------------------------
-
-#         if not employee.email:
-
-#             raise serializers.ValidationError({
-#                 "employee_id": "Employee does not have an email address."
-#             })
-
-#         if User.objects.filter(
-#             email__iexact=employee.email
-#         ).exists():
-
-#             raise serializers.ValidationError({
-#                 "email": "User with this email already exists."
-#             })
-
-#         # -----------------------------------------
-#         # Roles
-#         # -----------------------------------------
-
-#         roles = Role.objects.filter(
-#             id__in=role_ids,
-#             is_active=True
-#         ).select_related(
-#             "company",
-#             "plant",
-#             "department"
-#         )
-
-#         if roles.count() != len(set(role_ids)):
-
-#             raise serializers.ValidationError({
-#                 "role_ids": "One or more roles are invalid."
-#             })
-
-#         # -----------------------------------------
-#         # Validate Role Scope
-#         # -----------------------------------------
-
-#         for role in roles:
-
-#             # Company Role
-#             if role.scope == "company":
-
-#                 if role.company_id != employee.company_id:
-
-#                     raise serializers.ValidationError({
-#                         "role_ids": (
-#                             f"Role '{role.name}' does not belong "
-#                             "to employee's company."
-#                         )
-#                     })
-
-#             # Plant Role
-#             elif role.scope == "plant":
-
-#                 if role.company_id != employee.company_id:
-
-#                     raise serializers.ValidationError({
-#                         "role_ids": (
-#                             f"Role '{role.name}' does not belong "
-#                             "to employee's company."
-#                         )
-#                     })
-
-#                 if role.plant_id != employee.plant_id:
-
-#                     raise serializers.ValidationError({
-#                         "role_ids": (
-#                             f"Role '{role.name}' does not belong "
-#                             "to employee's plant."
-#                         )
-#                     })
-
-#             # Department Role
-#             elif role.scope == "department":
-
-#                 if role.company_id != employee.company_id:
-
-#                     raise serializers.ValidationError({
-#                         "role_ids": (
-#                             f"Role '{role.name}' does not belong "
-#                             "to employee's company."
-#                         )
-#                     })
-
-#                 if role.plant_id != employee.plant_id:
-
-#                     raise serializers.ValidationError({
-#                         "role_ids": (
-#                             f"Role '{role.name}' does not belong "
-#                             "to employee's plant."
-#                         )
-#                     })
-
-#                 if role.department_id != employee.department_id:
-
-#                     raise serializers.ValidationError({
-#                         "role_ids": (
-#                             f"Role '{role.name}' does not belong "
-#                             "to employee's department."
-#                         )
-#                     })
-
-#         attrs["employee"] = employee
-#         attrs["roles"] = list(roles)
-
-#         return attrs
-
-
-
-
 from django.contrib.auth import get_user_model
-from django.db import transaction
+
 from rest_framework import serializers
 
 from apps.hrms.models.employee import Employee
 from apps.accounts.models.role import Role
-from apps.accounts.models.user_role import UserRole
+
 
 User = get_user_model()
 
 
 class CreateUserSerializer(serializers.Serializer):
 
-    employee_code = serializers.CharField(max_length=50)
-    first_name = serializers.CharField(max_length=100)
+    employee_code = serializers.CharField(
+        max_length=50
+    )
+
+    first_name = serializers.CharField(
+        max_length=100
+    )
 
     last_name = serializers.CharField(
         max_length=100,
@@ -206,13 +31,20 @@ class CreateUserSerializer(serializers.Serializer):
     )
 
     company = serializers.UUIDField()
+
     plant = serializers.UUIDField()
+
     department = serializers.UUIDField()
 
+    employment_type = serializers.CharField(
+        max_length=50
+    )
 
-    employment_type = serializers.CharField(max_length=50)
     joining_date = serializers.DateField()
-    status = serializers.CharField(max_length=30)
+
+    status = serializers.CharField(
+        max_length=30
+    )
 
     email = serializers.EmailField()
 
@@ -230,7 +62,20 @@ class CreateUserSerializer(serializers.Serializer):
 
     def validate(self, attrs):
 
-        # Validate employee code
+        request = self.context.get("request")
+
+        if not request:
+            raise serializers.ValidationError({
+                "request":
+                    "Request context is required."
+            })
+
+        requesting_user = request.user
+
+        # =====================================================
+        # CHECK EMPLOYEE CODE
+        # =====================================================
+
         if Employee.objects.filter(
             employee_code=attrs["employee_code"]
         ).exists():
@@ -240,7 +85,10 @@ class CreateUserSerializer(serializers.Serializer):
                     "Employee with this employee code already exists."
             })
 
-        # Validate email
+        # =====================================================
+        # CHECK EMAIL
+        # =====================================================
+
         if Employee.objects.filter(
             email__iexact=attrs["email"]
         ).exists():
@@ -259,9 +107,80 @@ class CreateUserSerializer(serializers.Serializer):
                     "User with this email already exists."
             })
 
-        # -----------------------------------------
-        # Roles
-        # -----------------------------------------
+        # =====================================================
+        # SUPER ADMIN
+        # =====================================================
+
+        is_super_admin = (
+            requesting_user.is_superuser
+            or
+            requesting_user.assigned_roles.filter(
+                role__code__iexact="SUPER_ADMIN",
+                role__is_active=True
+            ).exists()
+        )
+
+        # =====================================================
+        # PLANT HR / HR MANAGER
+        # =====================================================
+
+        is_plant_hr = requesting_user.assigned_roles.filter(
+            role__code__in=[
+                "PLANT_HR",
+                "HR_MANAGER",
+            ],
+            role__scope="plant",
+            role__is_active=True
+        ).exists()
+
+        # =====================================================
+        # AUTHORIZATION
+        # =====================================================
+
+        if not is_super_admin and not is_plant_hr:
+
+            raise serializers.ValidationError({
+                "permission":
+                    "You are not allowed to create users."
+            })
+
+        # =====================================================
+        # PLANT HR RESTRICTION
+        # =====================================================
+
+        if not is_super_admin:
+
+            # ---------------------------------------------
+            # Company
+            # ---------------------------------------------
+
+            if str(requesting_user.company_id) != str(
+                attrs["company"]
+            ):
+
+                raise serializers.ValidationError({
+                    "company":
+                        "You can only create users "
+                        "within your company."
+                })
+
+            # ---------------------------------------------
+            # Plant
+            # ---------------------------------------------
+
+            if str(requesting_user.plant_id) != str(
+                attrs["plant"]
+            ):
+
+                raise serializers.ValidationError({
+                    "plant":
+                        "You can only create users "
+                        "within your plant."
+                })
+
+        # =====================================================
+        # ROLES
+        # =====================================================
 
         role_ids = attrs["role_ids"]
 
@@ -281,25 +200,37 @@ class CreateUserSerializer(serializers.Serializer):
                     "One or more roles are invalid."
             })
 
-        # -----------------------------------------
-        # Role Scope
-        # -----------------------------------------
+        # =====================================================
+        # ROLE SCOPE VALIDATION
+        # =====================================================
 
         for role in roles:
 
+            # -------------------------------------------------
+            # COMPANY ROLE
+            # -------------------------------------------------
+
             if role.scope == "company":
 
-                if role.company_id != attrs["company"]:
+                if str(role.company_id) != str(
+                    attrs["company"]
+                ):
 
                     raise serializers.ValidationError({
                         "role_ids":
                             f"Role '{role.name}' does not belong "
                             "to employee's company."
                     })
+
+            # -------------------------------------------------
+            # PLANT ROLE
+            # -------------------------------------------------
 
             elif role.scope == "plant":
 
-                if role.company_id != attrs["company"]:
+                if str(role.company_id) != str(
+                    attrs["company"]
+                ):
 
                     raise serializers.ValidationError({
                         "role_ids":
@@ -307,17 +238,25 @@ class CreateUserSerializer(serializers.Serializer):
                             "to employee's company."
                     })
 
-                if role.plant_id != attrs["plant"]:
+                if str(role.plant_id) != str(
+                    attrs["plant"]
+                ):
 
                     raise serializers.ValidationError({
                         "role_ids":
                             f"Role '{role.name}' does not belong "
                             "to employee's plant."
                     })
+
+            # -------------------------------------------------
+            # DEPARTMENT ROLE
+            # -------------------------------------------------
 
             elif role.scope == "department":
 
-                if role.company_id != attrs["company"]:
+                if str(role.company_id) != str(
+                    attrs["company"]
+                ):
 
                     raise serializers.ValidationError({
                         "role_ids":
@@ -325,7 +264,9 @@ class CreateUserSerializer(serializers.Serializer):
                             "to employee's company."
                     })
 
-                if role.plant_id != attrs["plant"]:
+                if str(role.plant_id) != str(
+                    attrs["plant"]
+                ):
 
                     raise serializers.ValidationError({
                         "role_ids":
@@ -333,7 +274,9 @@ class CreateUserSerializer(serializers.Serializer):
                             "to employee's plant."
                     })
 
-                if role.department_id != attrs["department"]:
+                if str(role.department_id) != str(
+                    attrs["department"]
+                ):
 
                     raise serializers.ValidationError({
                         "role_ids":
@@ -341,9 +284,36 @@ class CreateUserSerializer(serializers.Serializer):
                             "to employee's department."
                     })
 
+        # =====================================================
+        # PLANT HR CAN ONLY ASSIGN DEPARTMENT ROLES
+        # =====================================================
+
+        if not is_super_admin:
+
+            for role in roles:
+
+                if role.scope != "department":
+
+                    raise serializers.ValidationError({
+                        "role_ids": (
+                            f"Plant HR cannot assign "
+                            f"'{role.name}'. Only department-level "
+                            "roles can be assigned."
+                        )
+                    })
+
+        # =====================================================
+        # SAVE ROLES FOR SERVICE
+        # =====================================================
+
         attrs["roles"] = list(roles)
 
         return attrs
+
+
+# =============================================================
+# USER SERIALIZER
+# =============================================================
 
 class UserSerializer(serializers.ModelSerializer):
 

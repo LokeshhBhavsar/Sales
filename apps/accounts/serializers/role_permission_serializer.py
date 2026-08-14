@@ -314,3 +314,183 @@ class RolePermissionSerializer(
 
             "created_at",
         ]
+
+
+
+class BulkRolePermissionAssignSerializer(serializers.Serializer):
+
+    role_id = serializers.UUIDField(
+        required=True
+    )
+
+    permission_id = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=True,
+        allow_empty=False
+    )
+
+    def validate(self, attrs):
+
+        role_id = attrs["role_id"]
+        permission_ids = attrs["permission_id"]
+
+        # =====================================================
+        # ROLE
+        # =====================================================
+
+        try:
+
+            role = Role.objects.get(
+                id=role_id,
+                is_active=True
+            )
+
+        except Role.DoesNotExist:
+
+            raise serializers.ValidationError({
+                "role_id":
+                    "Role not found or inactive."
+            })
+
+        # =====================================================
+        # DUPLICATE IDs IN REQUEST
+        # =====================================================
+
+        if len(permission_ids) != len(set(permission_ids)):
+
+            raise serializers.ValidationError({
+                "permission_id":
+                    "Duplicate permission IDs found in request."
+            })
+
+        # =====================================================
+        # GET PERMISSIONS
+        # =====================================================
+
+        permissions = Permission.objects.filter(
+            id__in=permission_ids
+        )
+
+        permission_map = {
+            str(permission.id): permission
+            for permission in permissions
+        }
+
+        # =====================================================
+        # CHECK MISSING PERMISSIONS
+        # =====================================================
+
+        missing_permissions = []
+
+        for permission_id in permission_ids:
+
+            if str(permission_id) not in permission_map:
+
+                missing_permissions.append(
+                    str(permission_id)
+                )
+
+        if missing_permissions:
+
+            raise serializers.ValidationError({
+                "permission_id": [
+                    f"Permission not found: {permission_id}"
+                    for permission_id in missing_permissions
+                ]
+            })
+
+        # =====================================================
+        # VALIDATE EACH PERMISSION
+        # =====================================================
+
+        for permission_id in permission_ids:
+
+            permission = permission_map[
+                str(permission_id)
+            ]
+
+            # -------------------------------------------------
+            # COMPANY
+            # -------------------------------------------------
+
+            if role.company_id != permission.company_id:
+
+                raise serializers.ValidationError({
+                    "permission": (
+                        f"Permission {permission.code} "
+                        "does not belong to role company."
+                    )
+                })
+
+            # -------------------------------------------------
+            # PLANT ROLE
+            # -------------------------------------------------
+
+            if role.scope == "plant":
+
+                if permission.scope == "plant":
+
+                    if role.plant_id != permission.plant_id:
+
+                        raise serializers.ValidationError({
+                            "permission": (
+                                f"Permission {permission.code} "
+                                "does not belong to role plant."
+                            )
+                        })
+
+                elif permission.scope == "department":
+
+                    if role.plant_id != permission.plant_id:
+
+                        raise serializers.ValidationError({
+                            "permission": (
+                                f"Permission {permission.code} "
+                                "does not belong to role plant."
+                            )
+                        })
+
+            # -------------------------------------------------
+            # DEPARTMENT ROLE
+            # -------------------------------------------------
+
+            if role.scope == "department":
+
+                if permission.scope == "plant":
+
+                    if role.plant_id != permission.plant_id:
+
+                        raise serializers.ValidationError({
+                            "permission": (
+                                f"Permission {permission.code} "
+                                "does not belong to role plant."
+                            )
+                        })
+
+                elif permission.scope == "department":
+
+                    if (
+                        role.plant_id != permission.plant_id
+                        or
+                        role.department_id != permission.department_id
+                    ):
+
+                        raise serializers.ValidationError({
+                            "permission": (
+                                f"Permission {permission.code} "
+                                "does not belong to role department."
+                            )
+                        })
+
+        # =====================================================
+        # STORE OBJECTS
+        # =====================================================
+
+        attrs["role"] = role
+
+        attrs["permissions"] = [
+            permission_map[str(permission_id)]
+            for permission_id in permission_ids
+        ]
+
+        return attrs

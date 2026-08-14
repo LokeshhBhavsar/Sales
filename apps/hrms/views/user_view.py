@@ -1,11 +1,11 @@
-# apps/accounts/view/user_view.py
-
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from apps.accounts.permissions import IsSuperAdmin
+from apps.accounts.permissions import (
+    IsPlantHROrSuperAdmin,
+)
 
 from apps.hrms.serializers.user_serializer import (
     CreateUserSerializer,
@@ -21,13 +21,16 @@ class UserCreateView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsSuperAdmin,
+        IsPlantHROrSuperAdmin,
     ]
 
     def post(self, request):
 
         serializer = CreateUserSerializer(
-            data=request.data
+            data=request.data,
+            context={
+                "request": request,
+            }
         )
 
         serializer.is_valid(
@@ -41,8 +44,10 @@ class UserCreateView(APIView):
         return Response(
             {
                 "success": True,
-                "message": "User created successfully.",
-                "data": UserSerializer(user).data
+                "message":
+                    "User created successfully.",
+                "data":
+                    UserSerializer(user).data,
             },
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )

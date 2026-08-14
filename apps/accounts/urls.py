@@ -13,6 +13,7 @@ from apps.accounts.view.role_view import (
     RoleDetailView,
 )
 from apps.accounts.view.role_permission_view import (
+    BulkRolePermissionView,
     RolePermissionView,
    
 )
@@ -69,6 +70,11 @@ urlpatterns = [
         RolePermissionView.as_view(),
         name="role-permission-list-create",
     ),
+    path(
+    "/role-permissions/bulk/",
+    BulkRolePermissionView.as_view(),
+    name="role-permission-bulk"
+),
 
     # =====================================================
     # User Permission Management

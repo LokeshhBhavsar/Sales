@@ -87,6 +87,7 @@ from apps.accounts.models.role_permission import (
 )
 
 from apps.accounts.serializers.role_permission_serializer import (
+    BulkRolePermissionAssignSerializer,
     RolePermissionAssignSerializer,
     RolePermissionSerializer,
 )
@@ -163,4 +164,65 @@ class RolePermissionView(APIView):
 
                 "data": serializer.data,
             }
+        )
+
+
+
+class BulkRolePermissionView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsSuperAdmin,
+    ]
+
+    def post(self, request):
+
+        serializer = BulkRolePermissionAssignSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        role = serializer.validated_data["role"]
+
+        permissions = serializer.validated_data[
+            "permissions"
+        ]
+
+        result = (
+            RolePermissionService
+            .assign_permissions_bulk(
+                role=role,
+                permissions=permissions
+            )
+        )
+
+        return Response(
+            {
+                "success": True,
+
+                "message":
+                    "Permissions assigned successfully.",
+
+                "role": {
+                    "id": str(role.id),
+                    "name": role.name,
+                    "code": role.code,
+                },
+
+                "created_count":
+                    len(result["created"]),
+
+                "already_assigned_count":
+                    len(result["already_assigned"]),
+
+                "created":
+                    result["created"],
+
+                "already_assigned":
+                    result["already_assigned"],
+            },
+            status=status.HTTP_201_CREATED
         )

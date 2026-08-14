@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.masters",
     "apps.hrms.apps.HrmsConfig",
+    "inventory",
 ]
 
 
