@@ -697,10 +697,7 @@ class AuthService:
 
     @staticmethod
     @transaction.atomic
-    def logout(
-        user,
-        refresh_token=None,
-    ):
+    def logout(user, refresh_token=None):
         """
         Logout user.
 
@@ -710,10 +707,6 @@ class AuthService:
         Otherwise:
             deactivate all active sessions.
         """
-
-        # -----------------------------------------------------
-        # Logout Specific Session
-        # -----------------------------------------------------
 
         if refresh_token:
 
@@ -726,21 +719,29 @@ class AuthService:
                 logged_out_at=timezone.now(),
             )
 
-        # -----------------------------------------------------
-        # Logout All Sessions
-        # -----------------------------------------------------
+            if updated == 0:
+                return {
+                    "success": False,
+                    "message": "Session not found or already logged out.",
+                }
 
-        else:
+            return {
+                "success": True,
+                "message": "Logout successful.",
+            }
 
-            updated = UserSession.objects.filter(
-                user=user,
-                is_active=True,
-            ).update(
-                is_active=False,
-                logged_out_at=timezone.now(),
-            )
+        updated = UserSession.objects.filter(
+            user=user,
+            is_active=True,
+        ).update(
+            is_active=False,
+            logged_out_at=timezone.now(),
+        )
 
-        return updated
+        return {
+            "success": True,
+            "message": f"{updated} active session(s) logged out.",
+        }
 
     # =========================================================
     # GET CURRENT USER
