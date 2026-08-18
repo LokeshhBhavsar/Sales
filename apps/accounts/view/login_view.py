@@ -118,6 +118,9 @@ class LoginView(APIView):
                     "refresh_token": result[
                         "refresh_token"
                     ],
+                    "roles": result[
+                "roles"
+            ],
                 }
             },
             status=status.HTTP_200_OK

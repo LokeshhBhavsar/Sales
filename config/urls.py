@@ -28,5 +28,9 @@ urlpatterns = [
         "api/masters",
         include("apps.masters.urls")
     ),
-    path("api/hrms", include("apps.hrms.urls"))
+    path("api/hrms", include("apps.hrms.urls")),
+    path(
+        "api/inventory/",
+        include("apps.inventory.urls")
+    ),
 ]

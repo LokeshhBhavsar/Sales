@@ -342,6 +342,8 @@ from rest_framework.exceptions import (
 from apps.accounts.models import User, user
 from apps.accounts.models.user_session import UserSession
 from apps.accounts.services.jwt_service import JWTService
+from apps.accounts.models.user_role import UserRole
+from apps.accounts.models.role_permission import RolePermission
 
 
 class AuthService:
@@ -432,6 +434,40 @@ class AuthService:
             refresh_token=refresh_token,
             request=request,
         )
+        # -----------------------------------------------------
+        # Get User Roles & Permissions
+        # -----------------------------------------------------
+
+        user_roles = UserRole.objects.filter(
+            user=user
+        ).select_related(
+            "role"
+        )
+
+        roles_data = []
+
+        for user_role in user_roles:
+            role = user_role.role
+
+            role_permissions = RolePermission.objects.filter(
+                role=role
+            ).select_related(
+                "permission"
+            )
+
+            permissions = []
+
+            for role_permission in role_permissions:
+                permission_code = role_permission.permission.code
+
+                if permission_code not in permissions:
+                    permissions.append(permission_code)
+
+            roles_data.append({
+                "roleKey": role.code,
+                "scope": role.scope.strip().lower(),
+                "permissions": permissions,
+            })
 
         # -----------------------------------------------------
         # Response
@@ -442,6 +478,7 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "session": session,
+            "roles": roles_data,
         }
 
     # =========================================================
