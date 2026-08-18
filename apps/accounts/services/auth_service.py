@@ -339,7 +339,7 @@ from rest_framework.exceptions import (
     ValidationError,
 )
 
-from apps.accounts.models import User
+from apps.accounts.models import User, user
 from apps.accounts.models.user_session import UserSession
 from apps.accounts.services.jwt_service import JWTService
 
@@ -686,10 +686,34 @@ class AuthService:
             user=user
         )
 
+        new_refresh_token = JWTService.generate_refresh_token(
+            user=user
+            )
+
+# -----------------------------------------------------
+# Update Session With New Refresh Token
+# -----------------------------------------------------
+
+        session.refresh_token = new_refresh_token
+        session.last_activity = timezone.now()
+
+        session.save(
+    update_fields=[
+        "refresh_token",
+        "last_activity",
+    ]
+)
+
         return {
-            "user": user,
-            "access_token": access_token,
-        }
+    "access_token": access_token,
+    "refresh_token": new_refresh_token,
+    "user": {
+        "id": str(user.id),
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+    }
+}
 
     # =========================================================
     # LOGOUT

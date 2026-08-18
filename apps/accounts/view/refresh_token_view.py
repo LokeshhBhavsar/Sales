@@ -32,7 +32,7 @@ class RefreshTokenView(APIView):
         response = AuthService.refresh_token(
 
         refresh_token=serializer.validated_data["refresh_token"],
-        request=request
+     
     )
         return Response(
             response,
