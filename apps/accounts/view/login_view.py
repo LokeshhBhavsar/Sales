@@ -118,6 +118,7 @@ class LoginView(APIView):
                     "refresh_token": result[
                         "refresh_token"
                     ],
+                    "session_id": result["session_id"],
                     "roles": result[
                 "roles"
             ],

@@ -477,7 +477,8 @@ class AuthService:
             "user": user,
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "session": session,
+           
+            "session_id": str(session.id),
             "roles": roles_data,
         }
 
