@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
       # Third Party Apps
     "rest_framework",
     
@@ -78,6 +79,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -133,7 +138,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
+CORS_ALLOW_ALL_ORIGINS = True
 JWT_SECRET_KEY = SECRET_KEY
 
 JWT_ALGORITHM = "HS256"
