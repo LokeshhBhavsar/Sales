@@ -496,3 +496,27 @@ class StockService:
             raise ValidationError(
                 "Stock record not found."
             )
+
+    @staticmethod
+    def list_stock(user=None, company_id=None, plant_id=None, warehouse_id=None, item_id=None):
+        queryset = Stock.objects.select_related(
+            "item",
+            "warehouse",
+            "storage_location",
+            "batch",
+        ).all()
+
+        # Scope filtering
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+
+        if plant_id:
+            queryset = queryset.filter(plant_id=plant_id)
+
+        if warehouse_id:
+            queryset = queryset.filter(warehouse_id=warehouse_id)
+
+        if item_id:
+            queryset = queryset.filter(item_id=item_id)
+
+        return queryset

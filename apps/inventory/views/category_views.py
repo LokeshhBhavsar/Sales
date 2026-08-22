@@ -1,3 +1,5 @@
+# views/category_view.py
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,14 +8,33 @@ from apps.inventory.serializers.category_serializer import CategorySerializer
 from apps.inventory.services.category_service import CategoryService
 
 
+def parse_boolean(value):
+    if value is None:
+        return None
+
+    value = value.lower()
+
+    if value in ["true", "1", "yes"]:
+        return True
+
+    if value in ["false", "0", "no"]:
+        return False
+
+    return None
+
+
 class CategoryListCreateView(APIView):
 
     def get(self, request):
 
+        is_active = parse_boolean(
+            request.query_params.get("is_active")
+        )
+
         queryset = CategoryService.list(
             company_id=request.query_params.get("company"),
             plant_id=request.query_params.get("plant"),
-            is_active=request.query_params.get("is_active")
+            is_active=is_active,
         )
 
         serializer = CategorySerializer(
@@ -113,7 +134,7 @@ class CategoryDetailView(APIView):
 
         return Response({
             "success": True,
-            "message": "Category updated successfully.",
+            "message": "Category partially updated successfully.",
             "data": CategorySerializer(category).data
         })
 
@@ -128,4 +149,4 @@ class CategoryDetailView(APIView):
         return Response({
             "success": True,
             "message": "Category deactivated successfully."
-        })
+        }, status=status.HTTP_200_OK)

@@ -11,36 +11,38 @@ from apps.inventory.serializers.stock_operation_serializer import (
 )
 from apps.inventory.services.stock_service import StockService
 
+from apps.inventory.serializers.stock_serializer import StockSerializer
 
 
 class StockListView(APIView):
-    """
-    GET /api/inventory/stock/
-
-    Returns current inventory stock.
-    """
 
     def get(self, request):
         try:
-            stocks = StockService.list_stock(request)
-
-            return Response(
-                {
-                    "success": True,
-                    "message": "Stock retrieved successfully.",
-                    "data": stocks,
-                },
-                status=status.HTTP_200_OK,
+            stocks = StockService.list_stock(
+                user=request.user,
+                company_id=request.query_params.get("company"),
+                plant_id=request.query_params.get("plant"),
+                item_id=request.query_params.get("item"),
+                warehouse_id=request.query_params.get("warehouse"),
             )
+
+            serializer = StockSerializer(
+                stocks,
+                many=True,
+                context={"request": request}
+            )
+
+            return Response({
+                "success": True,
+                "message": "Stock fetched successfully",
+                "data": serializer.data,
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response(
-                {
-                    "success": False,
-                    "message": str(e),
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return Response({
+                "success": False,
+                "message": str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class StockDetailView(APIView):

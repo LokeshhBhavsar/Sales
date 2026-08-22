@@ -107,7 +107,6 @@ class LoginView(APIView):
             {
                 "success": True,
                 "message": "Login successful.",
-
                 "data": {
                     "user": user_data,
 
