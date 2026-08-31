@@ -22,6 +22,21 @@ from apps.hrms.views.skill_matrix_view import (
     EmployeeSkillMatrixView,
     DepartmentSkillMatrixView
 )
+from apps.hrms.views.attendance import (
+    AttendanceViewSet,
+    AttendanceLogViewSet,
+)
+
+from apps.hrms.views.biometric import (
+    BiometricDeviceViewSet,
+    BiometricEmployeeViewSet,
+    BiometricPunchViewSet,
+)
+
+from apps.hrms.views.attendance_import import (
+    AttendanceImportViewSet,
+)
+
 
 urlpatterns = [
 
@@ -32,13 +47,13 @@ urlpatterns = [
         name="user-create",
     ),
     path(
-        "skills/",
+        "/skills/",
         SkillListCreateView.as_view(),
         name="skill-list-create"
     ),
 
     path(
-        "skills/<uuid:skill_id>/",
+        "/skills/<uuid:skill_id>/",
         SkillDetailView.as_view(),
         name="skill-detail"
     ),
@@ -48,7 +63,7 @@ urlpatterns = [
     # =====================================================
 
     path(
-        "department-skills/",
+        "/department-skills/",
         DepartmentSkillListCreateView.as_view(),
         name="department-skill-list-create"
     ),
@@ -58,13 +73,13 @@ urlpatterns = [
     # =====================================================
 
     path(
-        "employee-skills/",
+        "/employee-skills/",
         EmployeeSkillListCreateView.as_view(),
         name="employee-skill-list-create"
     ),
 
     path(
-        "employee-skills/<uuid:skill_id>/",
+        "/employee-skills/<uuid:skill_id>/",
         EmployeeSkillDetailView.as_view(),
         name="employee-skill-detail"
     ),
@@ -83,6 +98,145 @@ urlpatterns = [
         "departments/<uuid:department_id>/skill-matrix/",
         DepartmentSkillMatrixView.as_view(),
         name="department-skill-matrix"
+    ),
+    path(
+        "/attendance/",
+        AttendanceViewSet.as_view({
+            "get": "list",
+            "post": "create",
+        }),
+        name="attendance-list",
+    ),
+
+    path(
+        "/attendance/<uuid:pk>/",
+        AttendanceViewSet.as_view({
+            "get": "retrieve",
+            "put": "update",
+            "patch": "partial_update",
+            "delete": "destroy",
+        }),
+        name="attendance-detail",
+    ),
+
+    # ------------------------------------------
+    # Attendance Logs
+    # ------------------------------------------
+
+    path(
+        "/attendance-logs/",
+        AttendanceLogViewSet.as_view({
+            "get": "list",
+            "post": "create",
+        }),
+        name="attendance-log-list",
+    ),
+
+    path(
+        "/attendance-logs/<uuid:pk>/",
+        AttendanceLogViewSet.as_view({
+            "get": "retrieve",
+            "put": "update",
+            "patch": "partial_update",
+            "delete": "destroy",
+        }),
+        name="attendance-log-detail",
+    ),
+
+    # ------------------------------------------
+    # Biometric Devices
+    # ------------------------------------------
+
+    path(
+        "/biometric/devices/",
+        BiometricDeviceViewSet.as_view({
+            "get": "list",
+            "post": "create",
+        }),
+        name="biometric-device-list",
+    ),
+
+    path(
+        "/biometric/devices/<uuid:pk>/",
+        BiometricDeviceViewSet.as_view({
+            "get": "retrieve",
+            "put": "update",
+            "patch": "partial_update",
+            "delete": "destroy",
+        }),
+        name="biometric-device-detail",
+    ),
+
+    # ------------------------------------------
+    # Biometric Employees
+    # ------------------------------------------
+
+    path(
+        "/biometric/employees/",
+        BiometricEmployeeViewSet.as_view({
+            "get": "list",
+            "post": "create",
+        }),
+        name="biometric-employee-list",
+    ),
+
+    path(
+        "/biometric/employees/<uuid:pk>/",
+        BiometricEmployeeViewSet.as_view({
+            "get": "retrieve",
+            "put": "update",
+            "patch": "partial_update",
+            "delete": "destroy",
+        }),
+        name="biometric-employee-detail",
+    ),
+
+    # ------------------------------------------
+    # Biometric Punches
+    # ------------------------------------------
+
+    path(
+        "/biometric/punches/",
+        BiometricPunchViewSet.as_view({
+            "get": "list",
+            "post": "create",
+        }),
+        name="biometric-punch-list",
+    ),
+
+    path(
+        "/biometric/punches/<uuid:pk>/",
+        BiometricPunchViewSet.as_view({
+            "get": "retrieve",
+            "put": "update",
+            "patch": "partial_update",
+            "delete": "destroy",
+        }),
+        name="biometric-punch-detail",
+    ),
+
+    # ------------------------------------------
+    # Attendance Import
+    # ------------------------------------------
+
+    path(
+        "/attendance-imports/",
+        AttendanceImportViewSet.as_view({
+            "get": "list",
+            "post": "create",
+        }),
+        name="attendance-import-list",
+    ),
+
+    path(
+        "/attendance-imports/<uuid:pk>/",
+        AttendanceImportViewSet.as_view({
+            "get": "retrieve",
+            "put": "update",
+            "patch": "partial_update",
+            "delete": "destroy",
+        }),
+        name="attendance-import-detail",
     ),
 
 ]

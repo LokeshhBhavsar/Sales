@@ -45,7 +45,10 @@ from apps.inventory.views.stock_movement_views import (
     ItemStockHistoryView,
     BatchStockHistoryView,
 )
-
+from apps.inventory.views.report_views import (
+    StockSummaryReportView,
+    StockReportView,
+)
 
 urlpatterns = [
 
@@ -192,7 +195,7 @@ urlpatterns = [
 
     # Stock adjustment
     path(
-        "stock/adjust/",
+        "stock/adjustment/",
         AdjustStockView.as_view(),
         name="stock-adjust",
     ),
@@ -229,5 +232,17 @@ urlpatterns = [
         "batches/<uuid:batch_id>/stock-history/",
         BatchStockHistoryView.as_view(),
         name="batch-stock-history",
+    ),
+
+     path(
+        "reports/stock-summary/",
+        StockSummaryReportView.as_view(),
+        name="stock-summary-report"
+    ),
+
+    path(
+        "reports/",
+        StockReportView.as_view(),
+        name="stock-report"
     ),
 ]
