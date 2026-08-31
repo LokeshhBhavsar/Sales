@@ -430,7 +430,7 @@ class RoleListSerializer(
             "department_id",
             "department_name",
 
-            "level",
+            "scope",
 
             "name",
             "code",
@@ -439,7 +439,7 @@ class RoleListSerializer(
             "is_active",
 
             "created_at",
-            "updated_at",
+            # "updated_at",
         ]
 
 

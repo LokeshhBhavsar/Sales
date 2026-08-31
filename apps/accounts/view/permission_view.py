@@ -159,6 +159,37 @@ class PermissionView(APIView):
         )
 
 
+# class PermissionListAPIView(APIView):
+
+#     permission_classes = [
+#         IsAuthenticated
+#     ]
+
+#     def get(self, request):
+
+#         permissions = (
+#             PermissionService
+#             .get_permissions_for_user(
+#                 request.user
+#             )
+#         )
+
+#         serializer = PermissionSerializer(
+#             permissions,
+#             many=True
+#         )
+
+#         return Response(
+#             {
+#                 "success": True,
+
+#                 "count": permissions.count(),
+
+#                 "data": serializer.data,
+#             },
+#             status=status.HTTP_200_OK
+#         )
+
 class PermissionListAPIView(APIView):
 
     permission_classes = [
@@ -182,9 +213,7 @@ class PermissionListAPIView(APIView):
         return Response(
             {
                 "success": True,
-
                 "count": permissions.count(),
-
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK

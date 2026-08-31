@@ -2,6 +2,8 @@ from django.urls import path
 
 from apps.hrms.views.user_view import (
     UserCreateView,
+    UserDetailView,
+    UserListView,
 )
 
 from apps.hrms.views.skill_view import (
@@ -238,5 +240,20 @@ urlpatterns = [
         }),
         name="attendance-import-detail",
     ),
+
+
+    path(
+        "/users/list/",
+        UserListView.as_view(),
+        name="user-list",
+    ),
+
+    # Fetch user by ID
+    path(
+        "/users/<uuid:user_id>/",
+        UserDetailView.as_view(),
+        name="user-detail",
+    ),
+
 
 ]

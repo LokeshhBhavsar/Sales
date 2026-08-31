@@ -391,3 +391,104 @@ class UserSerializer(serializers.ModelSerializer):
                 "role"
             ).all()
         ]
+
+class UserListSerializer(serializers.ModelSerializer):
+
+    company_id = serializers.SerializerMethodField()
+    company_name = serializers.SerializerMethodField()
+
+    plant_id = serializers.SerializerMethodField()
+    plant_name = serializers.SerializerMethodField()
+
+    department_id = serializers.SerializerMethodField()
+    department_name = serializers.SerializerMethodField()
+
+    roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+
+        fields = [
+            "id",
+
+            "email",
+            "first_name",
+            "last_name",
+
+            "company_id",
+            "company_name",
+
+            "plant_id",
+            "plant_name",
+
+            "department_id",
+            "department_name",
+
+            "roles",
+
+            "is_active",
+            "is_staff",
+            "is_superuser",
+        ]
+
+    def get_company_id(self, obj):
+
+        return (
+            str(obj.company.id)
+            if obj.company
+            else None
+        )
+
+    def get_company_name(self, obj):
+
+        return (
+            obj.company.name
+            if obj.company
+            else None
+        )
+
+    def get_plant_id(self, obj):
+
+        return (
+            str(obj.plant.id)
+            if obj.plant
+            else None
+        )
+
+    def get_plant_name(self, obj):
+
+        return (
+            obj.plant.name
+            if obj.plant
+            else None
+        )
+
+    def get_department_id(self, obj):
+
+        return (
+            str(obj.department.id)
+            if obj.department
+            else None
+        )
+
+    def get_department_name(self, obj):
+
+        return (
+            obj.department.name
+            if obj.department
+            else None
+        )
+
+    def get_roles(self, obj):
+
+        return [
+            {
+                "id": str(item.role.id),
+                "name": item.role.name,
+                "code": item.role.code,
+                "scope": item.role.scope,
+            }
+            for item in obj.assigned_roles.select_related(
+                "role"
+            ).all()
+        ]

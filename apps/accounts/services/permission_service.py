@@ -265,6 +265,7 @@ from django.db.models import Q
 
 from rest_framework.exceptions import ValidationError
 
+from apps.accounts.models import user
 from apps.accounts.models.permission import Permission
 
 
@@ -438,119 +439,235 @@ class PermissionService:
     # GET PERMISSIONS FOR USER
     # =========================================================
 
+    # @staticmethod
+    # def get_permissions_for_user(user):
+
+    #     # -----------------------------------------------------
+    #     # SUPERUSER
+    #     # -----------------------------------------------------
+
+    #     if user.is_superuser:
+
+    #         return (
+    #             Permission.objects
+    #             .select_related(
+    #                 "company",
+    #                 "plant",
+    #                 "department",
+    #             )
+    #             .all()
+    #             .order_by(
+    #                 "module",
+    #                 "code",
+    #             )
+    #         )
+
+    #     # -----------------------------------------------------
+    #     # COMPANY REQUIRED
+    #     # -----------------------------------------------------
+
+    #     if not user.company:
+
+    #         return Permission.objects.none()
+
+    #     queryset = (
+    #         Permission.objects
+    #         .select_related(
+    #             "company",
+    #             "plant",
+    #             "department",
+    #         )
+    #         .filter(
+    #             company=user.company
+    #         )
+    #     )
+
+    #     # -----------------------------------------------------
+    #     # DEPARTMENT USER
+    #     # -----------------------------------------------------
+
+    #     if user.department:
+
+    #         return queryset.filter(
+
+    #             Q(
+    #                 scope="company"
+    #             )
+
+    #             |
+
+    #             Q(
+    #                 scope="plant",
+    #                 plant=user.plant,
+    #             )
+
+    #             |
+
+    #             Q(
+    #                 scope="department",
+    #                 plant=user.plant,
+    #                 department=user.department,
+    #             )
+
+    #         ).order_by(
+    #             "module",
+    #             "code",
+    #         )
+
+    #     # -----------------------------------------------------
+    #     # PLANT USER
+    #     # -----------------------------------------------------
+
+    #     if user.plant:
+
+    #         return queryset.filter(
+
+    #             Q(
+    #                 scope="company"
+    #             )
+
+    #             |
+
+    #             Q(
+    #                 scope="plant",
+    #                 plant=user.plant,
+    #             )
+
+    #             |
+
+    #             Q(
+    #                 scope="department",
+    #                 plant=user.plant,
+    #             )
+
+    #         ).order_by(
+    #             "module",
+    #             "code",
+    #         )
+
+    #     # -----------------------------------------------------
+    #     # COMPANY USER
+    #     # -----------------------------------------------------
+
+    #     return queryset.filter(
+    #         scope="company"
+    #     ).order_by(
+    #         "module",
+    #         "code",
+    #     )
     @staticmethod
     def get_permissions_for_user(user):
 
-        # -----------------------------------------------------
-        # SUPERUSER
-        # -----------------------------------------------------
+    # -----------------------------------------------------
+    # SUPERUSER
+    # -----------------------------------------------------
 
-        if user.is_superuser:
+     if user.is_superuser:
 
-            return (
-                Permission.objects
-                .select_related(
-                    "company",
-                    "plant",
-                    "department",
-                )
-                .all()
-                .order_by(
-                    "module",
-                    "code",
-                )
-            )
-
-        # -----------------------------------------------------
-        # COMPANY REQUIRED
-        # -----------------------------------------------------
-
-        if not user.company:
-
-            return Permission.objects.none()
-
-        queryset = (
+        return (
             Permission.objects
             .select_related(
                 "company",
                 "plant",
                 "department",
             )
-            .filter(
-                company=user.company
+            .all()
+            .order_by(
+                "module",
+                "code",
             )
         )
 
-        # -----------------------------------------------------
-        # DEPARTMENT USER
-        # -----------------------------------------------------
+    # -----------------------------------------------------
+    # COMPANY REQUIRED
+    # -----------------------------------------------------
 
-        if user.department:
+     if not user.company:
 
-            return queryset.filter(
+        return Permission.objects.none()
 
-                Q(
-                    scope="company"
-                )
+     queryset = (
+        Permission.objects
+        .select_related(
+            "company",
+            "plant",
+            "department",
+        )
+        .filter(
+            company=user.company
+        )
+    )
 
-                |
+    # -----------------------------------------------------
+    # DEPARTMENT USER
+    # -----------------------------------------------------
 
-                Q(
-                    scope="plant",
-                    plant=user.plant,
-                )
-
-                |
-
-                Q(
-                    scope="department",
-                    plant=user.plant,
-                    department=user.department,
-                )
-
-            ).order_by(
-                "module",
-                "code",
-            )
-
-        # -----------------------------------------------------
-        # PLANT USER
-        # -----------------------------------------------------
-
-        if user.plant:
-
-            return queryset.filter(
-
-                Q(
-                    scope="company"
-                )
-
-                |
-
-                Q(
-                    scope="plant",
-                    plant=user.plant,
-                )
-
-                |
-
-                Q(
-                    scope="department",
-                    plant=user.plant,
-                )
-
-            ).order_by(
-                "module",
-                "code",
-            )
-
-        # -----------------------------------------------------
-        # COMPANY USER
-        # -----------------------------------------------------
+     if user.department:
 
         return queryset.filter(
-            scope="company"
+
+            Q(
+                scope="company"
+            )
+
+            |
+
+            Q(
+                scope="plant",
+                plant=user.plant,
+            )
+
+            |
+
+            Q(
+                scope="department",
+                plant=user.plant,
+                department=user.department,
+            )
+
         ).order_by(
             "module",
             "code",
         )
+
+    # -----------------------------------------------------
+    # PLANT USER
+    # -----------------------------------------------------
+
+     if user.plant:
+
+        return queryset.filter(
+
+            Q(
+                scope="company"
+            )
+
+            |
+
+            Q(
+                scope="plant",
+                plant=user.plant,
+            )
+
+            |
+
+            Q(
+                scope="department",
+                plant=user.plant,
+            )
+
+        ).order_by(
+            "module",
+            "code",
+        )
+
+    # -----------------------------------------------------
+    # COMPANY USER
+    # -----------------------------------------------------
+
+     return queryset.filter(
+        scope="company"
+    ).order_by(
+        "module",
+        "code",
+    )
