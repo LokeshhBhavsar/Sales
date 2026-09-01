@@ -147,6 +147,7 @@
 #         UserRole.objects.bulk_create(user_roles)
 
 #         return user
+
 from django.db import transaction
 from django.contrib.auth import get_user_model
 

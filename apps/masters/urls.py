@@ -25,25 +25,25 @@ urlpatterns = [
         CompanyDetailView.as_view(),
         name="company-detail",
     ),
-     path(
-        "/plants",
-        PlantView.as_view(),
-        name="plant-list-create",
-    ),
+        path(
+            "/plants/",
+            PlantView.as_view(),
+            name="plant-list-create",
+        ),
 
+        path(
+            "/plants/<uuid:plant_id>",
+            PlantDetailView.as_view(),
+            name="plant-detail",
+        ),
     path(
-        "plants/<uuid:plant_id>/",
-        PlantDetailView.as_view(),
-        name="plant-detail",
-    ),
-    path(
-        "/departments",
+        "/departments/",
         DepartmentView.as_view(),
         name="department-list-create",
     ),
 
     path(
-        "departments/<uuid:department_id>/",
+        "/departments/<uuid:department_id>/",
         DepartmentDetailView.as_view(),
         name="department-detail",
     ),
