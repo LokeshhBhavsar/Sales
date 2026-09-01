@@ -3,6 +3,8 @@ from rest_framework.response import Response
 
 from rest_framework.views import APIView
 
+from rest_framework.permissions import IsAuthenticated
+
 
 from apps.accounts.serializers.refresh_token_serializer import (
     RefreshTokenSerializer,
@@ -38,4 +40,19 @@ class RefreshTokenView(APIView):
             response,
             status=status.HTTP_200_OK
         )
+
+
+
+class CheckAccessTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            "success": True,
+            "message": "Access token is valid",
+            "user": {
+                "id": str(request.user.id),
+                "email": request.user.email,
+            }
+        })
         

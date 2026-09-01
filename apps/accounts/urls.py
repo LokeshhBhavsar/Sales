@@ -1,7 +1,8 @@
 from django.urls import path
 
 from apps.accounts.view.login_view import LoginView
-from apps.accounts.view.refresh_token_view import RefreshTokenView
+from apps.accounts.view.refresh_token_view import CheckAccessTokenView, RefreshTokenView
+
 from apps.accounts.view.logout_view import LogoutView
 from apps.accounts.view.permission_view import (
     PermissionView,
@@ -29,6 +30,7 @@ from apps.accounts.view.user_role_view import UserRoleView
 app_name = "accounts"
 
 urlpatterns = [
+
     path(
         "/login",
         LoginView.as_view(),
@@ -39,6 +41,7 @@ urlpatterns = [
         RefreshTokenView.as_view(),
         name="refresh-token",
     ),
+    path("/check-token/", CheckAccessTokenView.as_view(), name="check-token"),
     path(
         "/logout",
         LogoutView.as_view(),
