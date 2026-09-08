@@ -188,13 +188,17 @@ class Employee(models.Model):
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
-        related_name="employees"
+        # related_name="employees",
+        null=True,
+        blank=True,
     )
 
     plant = models.ForeignKey(
         Plant,
         on_delete=models.CASCADE,
-        related_name="employees"
+        # related_name="employees",
+        null=True,
+        blank=True,
     )
 
     department = models.ForeignKey(
@@ -202,7 +206,7 @@ class Employee(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="employees"
+        # related_name="employees"
     )
 
     # --------------------------------------------------
