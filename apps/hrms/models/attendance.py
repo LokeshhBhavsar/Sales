@@ -60,12 +60,12 @@ class Attendance(models.Model):
         default="absent"
     )
 
-    check_in = models.DateTimeField(
+    InTime = models.DateTimeField(
         null=True,
         blank=True
     )
 
-    check_out = models.DateTimeField(
+    OutTime = models.DateTimeField(
         null=True,
         blank=True
     )

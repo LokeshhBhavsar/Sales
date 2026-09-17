@@ -30,14 +30,18 @@ class AttendanceImport(models.Model):
     )
 
     plant = models.ForeignKey(
-        Plant,
-        on_delete=models.CASCADE,
-        related_name="attendance_imports"
-    )
+    Plant,
+    on_delete=models.CASCADE,
+    related_name="attendance_imports"
+)
+
+    month = models.PositiveSmallIntegerField()
+
+    year = models.PositiveSmallIntegerField()
 
     file_name = models.CharField(
-        max_length=255
-    )
+    max_length=255
+)
 
     file = models.FileField(
         upload_to="hrms/attendance/"

@@ -1,6 +1,259 @@
-from datetime import datetime
+# from datetime import datetime
+
+# from django.db import transaction
+
+# from openpyxl import load_workbook
+
+# from apps.hrms.models.employee import Employee
+# from apps.hrms.models.attendance_import_row import (
+#     AttendanceImportRow
+# )
+
+# from apps.hrms.services.attendance_service import (
+#     AttendanceService
+# )
+
+
+# class ExcelAttendanceService:
+
+#     @staticmethod
+#     @transaction.atomic
+#     def process_import(attendance_import):
+
+#         attendance_import.status = "processing"
+#         attendance_import.save(
+#             update_fields=["status"]
+#         )
+
+#         try:
+
+#             workbook = load_workbook(
+#                 attendance_import.file.path,
+#                 data_only=True
+#             )
+
+#             worksheet = workbook.active
+
+#             rows = list(
+#                 worksheet.iter_rows(
+#                     values_only=True
+#                 )
+#             )
+
+#             if not rows:
+
+#                 attendance_import.status = "failed"
+#                 attendance_import.error_message = (
+#                     "Excel file is empty."
+#                 )
+#                 attendance_import.save()
+
+#                 return attendance_import
+
+#             headers = [
+#                 str(value).strip().lower()
+#                 if value is not None
+#                 else ""
+#                 for value in rows[0]
+#             ]
+
+#             required_headers = [
+#                 "employee_code",
+#                 "date",
+#                 "InTime",
+#                 "OutTime",
+#             ]
+
+#             missing_headers = [
+#                 header
+#                 for header in required_headers
+#                 if header not in headers
+#             ]
+
+#             if missing_headers:
+
+#                 attendance_import.status = "failed"
+#                 attendance_import.error_message = (
+#                     "Missing columns: "
+#                     + ", ".join(missing_headers)
+#                 )
+#                 attendance_import.save()
+
+#                 return attendance_import
+
+#             header_map = {
+#                 header: index
+#                 for index, header in enumerate(headers)
+#             }
+
+#             total = 0
+#             success = 0
+#             failed = 0
+
+#             for row_number, row in enumerate(
+#                 rows[1:],
+#                 start=2
+#             ):
+
+#                 total += 1
+
+#                 employee_code = row[
+#                     header_map["employee_code"]
+#                 ]
+
+#                 attendance_date = row[
+#                     header_map["date"]
+#                 ]
+
+#                 InTime = row[
+#                     header_map["InTime"]
+#                 ]
+
+#                 OutTime = row[
+#                     header_map["OutTime"]
+#                 ]
+
+#                 import_row = AttendanceImportRow.objects.create(
+#                     attendance_import=attendance_import,
+#                     row_number=row_number,
+#                     employee_code=str(
+#                         employee_code
+#                     ).strip()
+#                     if employee_code is not None
+#                     else "",
+#                 )
+
+#                 try:
+
+#                     if not employee_code:
+
+#                         raise ValueError(
+#                             "Employee code is required."
+#                         )
+
+#                     employee = Employee.objects.get(
+#                         employee_code=str(
+#                             employee_code
+#                         ).strip(),
+#                         company=attendance_import.company,
+#                         plant=attendance_import.plant,
+#                     )
+
+#                     if not attendance_date:
+
+#                         raise ValueError(
+#                             "Attendance date is required."
+#                         )
+
+#                     if isinstance(
+#                         attendance_date,
+#                         datetime
+#                     ):
+
+#                         attendance_date = (
+#                             attendance_date.date()
+#                         )
+
+#                     if isinstance(
+#                         InTime,
+#                         datetime
+#                     ):
+#                         InTime_datetime = InTime
+
+#                     else:
+#                         InTime_datetime = None
+
+#                     if isinstance(
+#                         OutTime,
+#                         datetime
+#                     ):
+#                         OutTime_datetime = OutTime
+
+#                     else:
+#                         OutTime_datetime = None
+
+#                     import_row.employee = employee
+#                     import_row.attendance_date = (
+#                         attendance_date
+#                     )
+
+#                     import_row.InTime = (
+#                         InTime_datetime
+#                     )
+
+#                     import_row.OutTime = (
+#                         OutTime_datetime
+#                     )
+
+#                     import_row.save()
+
+#                     AttendanceService.create_or_update_attendance(
+#                         employee=employee,
+#                         attendance_date=attendance_date,
+#                         InTime=InTime_datetime,
+#                         OutTime=OutTime_datetime,
+#                         source="excel"
+#                     )
+
+#                     import_row.status = "success"
+#                     import_row.save(
+#                         update_fields=["status"]
+#                     )
+
+#                     success += 1
+
+#                 except Exception as exc:
+
+#                     import_row.status = "failed"
+#                     import_row.error_message = str(exc)
+
+#                     import_row.save(
+#                         update_fields=[
+#                             "status",
+#                             "error_message"
+#                         ]
+#                     )
+
+#                     failed += 1
+
+#             attendance_import.total_rows = total
+#             attendance_import.successful_rows = success
+#             attendance_import.failed_rows = failed
+
+#             if failed == 0:
+
+#                 attendance_import.status = "completed"
+
+#             elif success > 0:
+
+#                 attendance_import.status = (
+#                     "partially_completed"
+#                 )
+
+#             else:
+
+#                 attendance_import.status = "failed"
+
+#             attendance_import.save()
+
+#             return attendance_import
+
+#         except Exception as exc:
+
+#             attendance_import.status = "failed"
+#             attendance_import.error_message = str(exc)
+
+#             attendance_import.save()
+
+#             return attendance_import
+
+import re
+import calendar
+
+from datetime import datetime, date, time, timedelta
 
 from django.db import transaction
+from django.utils import timezone
 
 from openpyxl import load_workbook
 
@@ -16,16 +269,244 @@ from apps.hrms.services.attendance_service import (
 
 class ExcelAttendanceService:
 
+    # ============================================================
+    # 1. FIND EMPLOYEE CODE FROM EXCEL EMPLOYEE ROW
+    # ============================================================
+
+    @staticmethod
+    def _find_employee_code(row):
+        """
+        Find employee code from a row containing values such as:
+
+            Employee:
+            1 : SHANKAR BURANGE
+            3 : GAJANAN GADGE
+            25 : ABHIJEET PATIL
+
+        Returns:
+            Employee code as string
+        """
+
+        for value in row:
+
+            if value is None:
+                continue
+
+            text = str(value).strip()
+
+            if not text:
+                continue
+
+            match = re.search(
+                r"(\d+)\s*:\s*(.+)",
+                text
+            )
+
+            if match:
+
+                employee_code = match.group(1)
+
+                return employee_code
+
+        return None
+
+    # ============================================================
+    # 2. PARSE EXCEL TIME
+    # ============================================================
+
+    @staticmethod
+    def _parse_time(value):
+        """
+        Convert Excel time value into Python time object.
+
+        Supports:
+            - datetime
+            - time
+            - timedelta
+            - strings: 08:36
+            - strings: 08:36:00
+            - strings: 08:36 AM
+            - strings: 08:36:00 AM
+        """
+
+        if value is None:
+            return None
+
+        # --------------------------------------------------------
+        # Excel datetime
+        # --------------------------------------------------------
+
+        if isinstance(value, datetime):
+
+            return value.time()
+
+        # --------------------------------------------------------
+        # Python time
+        # --------------------------------------------------------
+
+        if isinstance(value, time):
+
+            return value
+
+        # --------------------------------------------------------
+        # Excel timedelta
+        # --------------------------------------------------------
+
+        if isinstance(value, timedelta):
+
+            total_seconds = int(
+                value.total_seconds()
+            ) % (24 * 60 * 60)
+
+            hours = total_seconds // 3600
+
+            minutes = (
+                total_seconds % 3600
+            ) // 60
+
+            seconds = (
+                total_seconds % 60
+            )
+
+            return time(
+                hour=hours,
+                minute=minutes,
+                second=seconds
+            )
+
+        # --------------------------------------------------------
+        # String value
+        # --------------------------------------------------------
+
+        text = str(value).strip()
+
+        if not text:
+            return None
+
+        # --------------------------------------------------------
+        # Normalize common Excel text
+        # --------------------------------------------------------
+
+        text = text.replace(".", ":")
+
+        # --------------------------------------------------------
+        # Supported formats
+        # --------------------------------------------------------
+
+        time_formats = (
+            "%H:%M",
+            "%H:%M:%S",
+            "%I:%M %p",
+            "%I:%M:%S %p",
+            "%I:%M%p",
+            "%I:%M:%S%p",
+        )
+
+        for time_format in time_formats:
+
+            try:
+
+                return datetime.strptime(
+                    text,
+                    time_format
+                ).time()
+
+            except ValueError:
+
+                continue
+
+        return None
+
+    # ============================================================
+    # 3. CREATE TIMEZONE-AWARE DATETIME
+    # ============================================================
+
+    @staticmethod
+    def _make_datetime(
+        attendance_date,
+        time_value
+    ):
+        """
+        Combine attendance date and Excel time
+        into a timezone-aware datetime.
+        """
+
+        parsed_time = (
+            ExcelAttendanceService._parse_time(
+                time_value
+            )
+        )
+
+        if parsed_time is None:
+
+            return None
+
+        combined = datetime.combine(
+            attendance_date,
+            parsed_time
+        )
+
+        if timezone.is_naive(combined):
+
+            combined = timezone.make_aware(
+                combined
+            )
+
+        return combined
+
+    # ============================================================
+    # 4. PROCESS ATTENDANCE EXCEL IMPORT
+    # ============================================================
+
     @staticmethod
     @transaction.atomic
     def process_import(attendance_import):
 
         attendance_import.status = "processing"
+
+        attendance_import.error_message = ""
+
         attendance_import.save(
-            update_fields=["status"]
+            update_fields=[
+                "status",
+                "error_message"
+            ]
         )
 
         try:
+
+            # ====================================================
+            # 1. VALIDATE MONTH AND YEAR
+            # ====================================================
+
+            month = attendance_import.month
+
+            year = attendance_import.year
+
+            if not month or not 1 <= int(month) <= 12:
+
+                raise ValueError(
+                    "Invalid attendance month."
+                )
+
+            if not year or not 1900 <= int(year) <= 2100:
+
+                raise ValueError(
+                    "Invalid attendance year."
+                )
+
+            month = int(month)
+
+            year = int(year)
+
+            days_in_month = calendar.monthrange(
+                year,
+                month
+            )[1]
+
+            # ====================================================
+            # 2. OPEN EXCEL FILE
+            # ====================================================
 
             workbook = load_workbook(
                 attendance_import.file.path,
@@ -43,93 +524,224 @@ class ExcelAttendanceService:
             if not rows:
 
                 attendance_import.status = "failed"
+
                 attendance_import.error_message = (
                     "Excel file is empty."
                 )
+
                 attendance_import.save()
 
                 return attendance_import
 
-            headers = [
-                str(value).strip().lower()
-                if value is not None
-                else ""
-                for value in rows[0]
-            ]
+            # ====================================================
+            # 3. FIND DAYS ROW
+            # ====================================================
 
-            required_headers = [
-                "employee_code",
-                "date",
-                "check_in",
-                "check_out",
-            ]
+            days_row_index = None
 
-            missing_headers = [
-                header
-                for header in required_headers
-                if header not in headers
-            ]
+            day_columns = {}
 
-            if missing_headers:
-
-                attendance_import.status = "failed"
-                attendance_import.error_message = (
-                    "Missing columns: "
-                    + ", ".join(missing_headers)
-                )
-                attendance_import.save()
-
-                return attendance_import
-
-            header_map = {
-                header: index
-                for index, header in enumerate(headers)
-            }
-
-            total = 0
-            success = 0
-            failed = 0
-
-            for row_number, row in enumerate(
-                rows[1:],
-                start=2
+            for row_index, row in enumerate(
+                rows
             ):
 
-                total += 1
-
-                employee_code = row[
-                    header_map["employee_code"]
-                ]
-
-                attendance_date = row[
-                    header_map["date"]
-                ]
-
-                check_in = row[
-                    header_map["check_in"]
-                ]
-
-                check_out = row[
-                    header_map["check_out"]
-                ]
-
-                import_row = AttendanceImportRow.objects.create(
-                    attendance_import=attendance_import,
-                    row_number=row_number,
-                    employee_code=str(
-                        employee_code
-                    ).strip()
-                    if employee_code is not None
-                    else "",
+                first_value = (
+                    str(row[0]).strip().lower()
+                    if row and row[0] is not None
+                    else ""
                 )
 
-                try:
+                if first_value == "days":
 
-                    if not employee_code:
+                    days_row_index = row_index
 
-                        raise ValueError(
-                            "Employee code is required."
+                    for column_index, value in enumerate(
+                        row
+                    ):
+
+                        if value is None:
+                            continue
+
+                        text = str(value).strip()
+
+                        # Examples:
+                        #
+                        # 1 W
+                        # 2 Th
+                        # 3 F
+                        # 4 St
+                        # etc.
+
+                        match = re.match(
+                            r"^(\d{1,2})\b",
+                            text
                         )
+
+                        if match:
+
+                            day_number = int(
+                                match.group(1)
+                            )
+
+                            if (
+                                1
+                                <= day_number
+                                <= days_in_month
+                            ):
+
+                                day_columns[
+                                    day_number
+                                ] = column_index
+
+                    break
+
+            if days_row_index is None:
+
+                raise ValueError(
+                    "Could not find 'Days' row in Excel."
+                )
+
+            if not day_columns:
+
+                raise ValueError(
+                    "Could not find attendance day columns."
+                )
+
+            # ====================================================
+            # 4. FIND EMPLOYEE BLOCKS
+            # ====================================================
+
+            employee_blocks = []
+
+            for row_index, row in enumerate(
+                rows
+            ):
+
+                first_value = (
+                    str(row[0]).strip().lower()
+                    if row and row[0] is not None
+                    else ""
+                )
+
+                if first_value != "employee:":
+                    continue
+
+                employee_code = (
+                    ExcelAttendanceService
+                    ._find_employee_code(row)
+                )
+
+                if not employee_code:
+                    continue
+
+                employee_blocks.append(
+                    (
+                        row_index,
+                        employee_code
+                    )
+                )
+
+            if not employee_blocks:
+
+                raise ValueError(
+                    "No employee records found in Excel."
+                )
+
+            # ====================================================
+            # 5. COUNTERS
+            # ====================================================
+
+            total = 0
+
+            success = 0
+
+            failed = 0
+
+            import_row_number = 1
+
+            # ====================================================
+            # 6. PROCESS EVERY EMPLOYEE
+            # ====================================================
+
+            for (
+                employee_row_index,
+                employee_code
+            ) in employee_blocks:
+
+                # ------------------------------------------------
+                # Employee block normally contains:
+                #
+                # Employee:
+                # Status
+                # InTime
+                # OutTime
+                #
+                # We search dynamically instead of assuming
+                # fixed row positions.
+                # ------------------------------------------------
+
+                status_row = None
+
+                intime_row = None
+
+                outtime_row = None
+
+                for search_index in range(
+                    employee_row_index + 1,
+                    min(
+                        employee_row_index + 10,
+                        len(rows)
+                    )
+                ):
+
+                    row = rows[search_index]
+
+                    if not row:
+                        continue
+
+                    first_value = (
+                        str(row[0]).strip().lower()
+                        if row[0] is not None
+                        else ""
+                    )
+
+                    if first_value == "status":
+
+                        status_row = search_index
+
+                    elif first_value == "intime":
+
+                        intime_row = search_index
+
+                    elif first_value == "outtime":
+
+                        outtime_row = search_index
+
+                # ------------------------------------------------
+                # Fallback positions
+                # ------------------------------------------------
+
+                if intime_row is None:
+
+                    intime_row = (
+                        employee_row_index + 2
+                    )
+
+                if outtime_row is None:
+
+                    outtime_row = (
+                        employee_row_index + 3
+                    )
+
+                # =================================================
+                # 7. FIND EMPLOYEE IN DATABASE
+                # =================================================
+
+                employee = None
+
+                employee_lookup_error = None
+
+                try:
 
                     employee = Employee.objects.get(
                         employee_code=str(
@@ -139,109 +751,275 @@ class ExcelAttendanceService:
                         plant=attendance_import.plant,
                     )
 
-                    if not attendance_date:
+                except Employee.DoesNotExist:
 
-                        raise ValueError(
-                            "Attendance date is required."
+                    employee_lookup_error = (
+                        f"Employee code "
+                        f"{employee_code} not found "
+                        f"for selected company and plant."
+                    )
+
+                except Employee.MultipleObjectsReturned:
+
+                    employee_lookup_error = (
+                        f"Multiple employees found "
+                        f"for employee code "
+                        f"{employee_code}."
+                    )
+
+                # =================================================
+                # 8. PROCESS EACH DAY
+                # =================================================
+
+                for (
+                    day_number,
+                    column_index
+                ) in day_columns.items():
+
+                    attendance_date = date(
+                        year,
+                        month,
+                        day_number
+                    )
+
+                    # =================================================
+                    # READ IN TIME
+                    # =================================================
+
+                    check_in_value = None
+
+                    if (
+                        intime_row is not None
+                        and intime_row < len(rows)
+                        and column_index < len(
+                            rows[intime_row]
+                        )
+                    ):
+
+                        check_in_value = rows[
+                            intime_row
+                        ][column_index]
+
+                    # =================================================
+                    # READ OUT TIME
+                    # =================================================
+
+                    check_out_value = None
+
+                    if (
+                        outtime_row is not None
+                        and outtime_row < len(rows)
+                        and column_index < len(
+                            rows[outtime_row]
+                        )
+                    ):
+
+                        check_out_value = rows[
+                            outtime_row
+                        ][column_index]
+
+                    # =================================================
+                    # CONVERT TO DATETIME
+                    # =================================================
+
+                    check_in_datetime = (
+                        ExcelAttendanceService
+                        ._make_datetime(
+                            attendance_date,
+                            check_in_value
+                        )
+                    )
+
+                    check_out_datetime = (
+                        ExcelAttendanceService
+                        ._make_datetime(
+                            attendance_date,
+                            check_out_value
+                        )
+                    )
+
+                    # =================================================
+                    # CREATE IMPORT ROW
+                    # =================================================
+
+                    import_row = (
+                        AttendanceImportRow.objects.create(
+                            attendance_import=attendance_import,
+                            row_number=import_row_number,
+                            employee_code=str(
+                                employee_code
+                            ).strip(),
+                            status="pending",
+                            error_message=""
+                        )
+                    )
+
+                    total += 1
+
+                    import_row_number += 1
+
+                    try:
+
+                        # =============================================
+                        # EMPLOYEE VALIDATION
+                        # =============================================
+
+                        if employee_lookup_error:
+
+                            raise ValueError(
+                                employee_lookup_error
+                            )
+
+                        if employee is None:
+
+                            raise ValueError(
+                                "Employee could not be found."
+                            )
+
+                        # =============================================
+                        # SAVE IMPORT ROW
+                        #
+                        # IMPORTANT:
+                        # Your AttendanceImportRow model uses:
+                        #     InTime
+                        #     OutTime
+                        #
+                        # NOT:
+                        #     check_in
+                        #     check_out
+                        # =============================================
+
+                        import_row.employee = employee
+
+                        import_row.attendance_date = (
+                            attendance_date
                         )
 
-                    if isinstance(
-                        attendance_date,
-                        datetime
-                    ):
-
-                        attendance_date = (
-                            attendance_date.date()
+                        import_row.InTime = (
+                            check_in_datetime
                         )
 
-                    if isinstance(
-                        check_in,
-                        datetime
-                    ):
-                        check_in_datetime = check_in
+                        import_row.OutTime = (
+                            check_out_datetime
+                        )
 
-                    else:
-                        check_in_datetime = None
+                        import_row.save()
 
-                    if isinstance(
-                        check_out,
-                        datetime
-                    ):
-                        check_out_datetime = check_out
+                        # =============================================
+                        # CREATE / UPDATE ACTUAL ATTENDANCE
+                        #
+                        # AttendanceService can continue using
+                        # check_in / check_out because these are the
+                        # service method parameters.
+                        # =============================================
 
-                    else:
-                        check_out_datetime = None
-
-                    import_row.employee = employee
-                    import_row.attendance_date = (
-                        attendance_date
-                    )
-
-                    import_row.check_in = (
-                        check_in_datetime
-                    )
-
-                    import_row.check_out = (
-                        check_out_datetime
-                    )
-
-                    import_row.save()
-
-                    AttendanceService.create_or_update_attendance(
+                        AttendanceService.create_or_update_attendance(
                         employee=employee,
                         attendance_date=attendance_date,
-                        check_in=check_in_datetime,
-                        check_out=check_out_datetime,
+                        InTime=check_in_datetime,
+                        OutTime=check_out_datetime,
                         source="excel"
-                    )
+                        )
 
-                    import_row.status = "success"
-                    import_row.save(
-                        update_fields=["status"]
-                    )
+                        # =============================================
+                        # MARK IMPORT ROW SUCCESS
+                        # =============================================
 
-                    success += 1
+                        import_row.status = "success"
 
-                except Exception as exc:
+                        import_row.error_message = ""
 
-                    import_row.status = "failed"
-                    import_row.error_message = str(exc)
+                        import_row.save(
+                            update_fields=[
+                                "status",
+                                "error_message"
+                            ]
+                        )
 
-                    import_row.save(
-                        update_fields=[
-                            "status",
-                            "error_message"
-                        ]
-                    )
+                        success += 1
 
-                    failed += 1
+                    except Exception as exc:
+
+                        # =============================================
+                        # MARK IMPORT ROW FAILED
+                        # =============================================
+
+                        import_row.status = "failed"
+
+                        import_row.error_message = str(
+                            exc
+                        )
+
+                        import_row.save(
+                            update_fields=[
+                                "status",
+                                "error_message"
+                            ]
+                        )
+
+                        failed += 1
+
+            # ====================================================
+            # 9. UPDATE IMPORT SUMMARY
+            # ====================================================
 
             attendance_import.total_rows = total
+
             attendance_import.successful_rows = success
+
             attendance_import.failed_rows = failed
 
-            if failed == 0:
+            # ----------------------------------------------------
+            # ALL SUCCESS
+            # ----------------------------------------------------
+
+            if failed == 0 and success > 0:
 
                 attendance_import.status = "completed"
 
-            elif success > 0:
+                attendance_import.error_message = ""
+
+            # ----------------------------------------------------
+            # PARTIAL SUCCESS
+            # ----------------------------------------------------
+
+            elif success > 0 and failed > 0:
 
                 attendance_import.status = (
                     "partially_completed"
                 )
 
+                attendance_import.error_message = (
+                    f"{failed} attendance rows failed."
+                )
+
+            # ----------------------------------------------------
+            # ALL FAILED
+            # ----------------------------------------------------
+
             else:
 
                 attendance_import.status = "failed"
+
+                attendance_import.error_message = (
+                    "No attendance rows were imported."
+                )
 
             attendance_import.save()
 
             return attendance_import
 
+        # ========================================================
+        # OUTER IMPORT ERROR
+        # ========================================================
+
         except Exception as exc:
 
             attendance_import.status = "failed"
-            attendance_import.error_message = str(exc)
+
+            attendance_import.error_message = str(
+                exc
+            )
 
             attendance_import.save()
 
