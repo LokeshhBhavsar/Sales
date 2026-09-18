@@ -109,7 +109,13 @@ urlpatterns = [
         }),
         name="attendance-list",
     ),
-
+    path(
+        "/attendance/today-summary/",
+        AttendanceViewSet.as_view({
+            "get": "today_summary",
+        }),
+        name="attendance-today-summary",
+    ),
     path(
         "/attendance/<uuid:pk>/",
         AttendanceViewSet.as_view({

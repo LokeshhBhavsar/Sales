@@ -1,6 +1,7 @@
 from datetime import datetime, date, timedelta
 
 from django.db.models import Q
+from django.utils import timezone
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -39,130 +40,130 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         queryset = super().get_queryset()
 
-    # =====================================================
-    # EXISTING FILTERS
-    # =====================================================
+        # =====================================================
+        # EXISTING FILTERS
+        # =====================================================
 
         employee = self.request.query_params.get(
-        "employee"
-    )
+            "employee"
+        )
 
         employee_code = self.request.query_params.get(
-        "employee_code"
-    )
+            "employee_code"
+        )
 
         company = self.request.query_params.get(
-        "company"
-    )
+            "company"
+        )
 
         plant = self.request.query_params.get(
-        "plant"
-    )
+            "plant"
+        )
 
         attendance_date = self.request.query_params.get(
-        "date"
-    )
+            "date"
+        )
 
         start_date = self.request.query_params.get(
-        "start_date"
-    )
+            "start_date"
+        )
 
         end_date = self.request.query_params.get(
-        "end_date"
-    )
+            "end_date"
+        )
 
         status_filter = self.request.query_params.get(
-        "status"
-    )
+            "status"
+        )
 
         source = self.request.query_params.get(
-        "source"
-    )
+            "source"
+        )
 
-    # =====================================================
-    # NEW FILTERS
-    # =====================================================
+        # =====================================================
+        # NEW FILTERS
+        # =====================================================
 
         department = self.request.query_params.get(
-        "department"
-    )
+            "department"
+        )
 
         week = self.request.query_params.get(
-        "week"
-    )
+            "week"
+        )
 
         month = self.request.query_params.get(
-        "month"
-    )
+            "month"
+        )
 
         year = self.request.query_params.get(
-        "year"
-    )
+            "year"
+        )
 
-    # =====================================================
-    # EMPLOYEE FILTER
-    # =====================================================
+        # =====================================================
+        # EMPLOYEE FILTER
+        # =====================================================
 
         if employee:
             queryset = queryset.filter(
-            employee_id=employee
-        )
+                employee_id=employee
+            )
 
-    # =====================================================
-    # EMPLOYEE CODE FILTER
-    # =====================================================
+        # =====================================================
+        # EMPLOYEE CODE FILTER
+        # =====================================================
 
         if employee_code:
             queryset = queryset.filter(
-            employee__employee_code=employee_code
-        )
+                employee__employee_code=employee_code
+            )
 
-    # =====================================================
-    # COMPANY FILTER
-    # =====================================================
+        # =====================================================
+        # COMPANY FILTER
+        # =====================================================
 
         if company:
             queryset = queryset.filter(
-            company_id=company
-        )
+                company_id=company
+            )
 
-    # =====================================================
-    # PLANT FILTER
-    # =====================================================
+        # =====================================================
+        # PLANT FILTER
+        # =====================================================
 
         if plant:
             queryset = queryset.filter(
-            plant_id=plant
-        )
+                plant_id=plant
+            )
 
-    # =====================================================
-    # DEPARTMENT FILTER
-    # =====================================================
+        # =====================================================
+        # DEPARTMENT FILTER
+        # =====================================================
 
         if department:
             queryset = queryset.filter(
-            employee__department_id=department
-        )
+                employee__department_id=department
+            )
 
-    # =====================================================
-    # EXACT DATE FILTER
-    # Example:
-    # ?date=2026-09-17
-    # =====================================================
+        # =====================================================
+        # EXACT DATE FILTER
+        # Example:
+        # ?date=2026-09-17
+        # =====================================================
 
         if attendance_date:
             queryset = queryset.filter(
-            attendance_date=attendance_date
-        )
+                attendance_date=attendance_date
+            )
 
-    # =====================================================
-    # WEEK FILTER
-    # Example:
-    # ?week=2026-W38
-    #
-    # ISO week:
-    # Monday -> Sunday
-    # =====================================================
+        # =====================================================
+        # WEEK FILTER
+        # Example:
+        # ?week=2026-W38
+        #
+        # ISO week:
+        # Monday -> Sunday
+        # =====================================================
 
         if week:
 
@@ -174,35 +175,35 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 week_number = int(week_number)
 
                 first_day_of_week = date.fromisocalendar(
-                week_year,
-                week_number,
-                1
-            )
+                    week_year,
+                    week_number,
+                    1
+                )
 
                 last_day_of_week = first_day_of_week + timedelta(
-                days=6
-            )
+                    days=6
+                )
 
                 queryset = queryset.filter(
-                attendance_date__range=[
-                    first_day_of_week,
-                    last_day_of_week
-                ]
-            )
+                    attendance_date__range=[
+                        first_day_of_week,
+                        last_day_of_week
+                    ]
+                )
 
             except (ValueError, TypeError):
 
                 queryset = queryset.none()
 
-    # =====================================================
-    # MONTH FILTER
-    #
-    # Example:
-    # ?month=9&year=2026
-    #
-    # Returns:
-    # 2026-09-01 -> 2026-09-30
-    # =====================================================
+        # =====================================================
+        # MONTH FILTER
+        #
+        # Example:
+        # ?month=9&year=2026
+        #
+        # Returns:
+        # 2026-09-01 -> 2026-09-30
+        # =====================================================
 
         if month:
 
@@ -227,44 +228,44 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 if month_number == 12:
 
                     first_day_of_next_month = date(
-                    year_number + 1,
-                    1,
-                    1
-                )
+                        year_number + 1,
+                        1,
+                        1
+                    )
 
                 else:
 
                     first_day_of_next_month = date(
-                    year_number,
-                    month_number + 1,
-                    1
-                )
+                        year_number,
+                        month_number + 1,
+                        1
+                    )
 
                 last_day_of_month = (
                     first_day_of_next_month -
                     timedelta(days=1)
-            )
+                )
 
                 queryset = queryset.filter(
                     attendance_date__range=[
-                    first_day_of_month,
-                    last_day_of_month
-                ]
-            )
+                        first_day_of_month,
+                        last_day_of_month
+                    ]
+                )
 
             except (ValueError, TypeError):
 
                 queryset = queryset.none()
 
-    # =====================================================
-    # YEAR FILTER
-    #
-    # Example:
-    # ?year=2026
-    #
-    # Returns:
-    # 2026-01-01 -> 2026-12-31
-    # =====================================================
+        # =====================================================
+        # YEAR FILTER
+        #
+        # Example:
+        # ?year=2026
+        #
+        # Returns:
+        # 2026-01-01 -> 2026-12-31
+        # =====================================================
 
         if year and not month:
 
@@ -273,70 +274,68 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 year_number = int(year)
 
                 first_day_of_year = date(
-                year_number,
+                    year_number,
                     1,
-                    1   
-            )
+                    1
+                )
 
                 last_day_of_year = date(
-                year_number,
-                12,
-                31
-            )
+                    year_number,
+                    12,
+                    31
+                )
 
                 queryset = queryset.filter(
                     attendance_date__range=[
-                    first_day_of_year,
-                    last_day_of_year
-                ]
-            )
+                        first_day_of_year,
+                        last_day_of_year
+                    ]
+                )
 
             except (ValueError, TypeError):
 
                 queryset = queryset.none()
 
-    # =====================================================
-    # CUSTOM DATE RANGE
-    #
-    # Example:
-    # ?start_date=2026-09-01&end_date=2026-09-15
-    # =====================================================
+        # =====================================================
+        # CUSTOM DATE RANGE
+        #
+        # Example:
+        # ?start_date=2026-09-01&end_date=2026-09-15
+        # =====================================================
 
         if start_date:
             queryset = queryset.filter(
-            attendance_date__gte=start_date
-        )
+                attendance_date__gte=start_date
+            )
 
         if end_date:
             queryset = queryset.filter(
-            attendance_date__lte=end_date
-        )
+                attendance_date__lte=end_date
+            )
 
-    # =====================================================
-    # STATUS FILTER
-    # =====================================================
+        # =====================================================
+        # STATUS FILTER
+        # =====================================================
 
         if status_filter:
             queryset = queryset.filter(
-            status=status_filter
-        )
+                status=status_filter
+            )
 
-    # =====================================================
-    # SOURCE FILTER
-    # =====================================================
+        # =====================================================
+        # SOURCE FILTER
+        # =====================================================
 
         if source:
             queryset = queryset.filter(
-            source=source
-        )
+                source=source
+            )
 
         return queryset
 
-
-
-
-
-
+    # =========================================================
+    # CHECK-IN API
+    # =========================================================
 
     @action(
         detail=False,
@@ -396,6 +395,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    # =========================================================
+    # CHECK-OUT API
+    # =========================================================
+
     @action(
         detail=False,
         methods=["post"],
@@ -453,6 +456,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             }
         )
 
+    # =========================================================
+    # EXISTING SUMMARY API
+    # =========================================================
+
     @action(
         detail=False,
         methods=["get"],
@@ -464,27 +471,35 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         data = {
             "total": queryset.count(),
+
             "present": queryset.filter(
                 status="present"
             ).count(),
+
             "absent": queryset.filter(
                 status="absent"
             ).count(),
+
             "half_day": queryset.filter(
                 status="half_day"
             ).count(),
+
             "leave": queryset.filter(
                 status="leave"
             ).count(),
+
             "holiday": queryset.filter(
                 status="holiday"
             ).count(),
+
             "weekly_off": queryset.filter(
                 status="weekly_off"
             ).count(),
+
             "work_from_home": queryset.filter(
                 status="work_from_home"
             ).count(),
+
             "total_overtime_minutes": sum(
                 queryset.values_list(
                     "overtime_minutes",
@@ -498,6 +513,109 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 "success": True,
                 "data": data
             }
+        )
+
+    # =========================================================
+    # NEW DAILY ATTENDANCE SUMMARY API
+    #
+    # GET:
+    # /api/hrms/attendance/today-summary/
+    #
+    # Returns today's:
+    # Total
+    # Present
+    # Absent
+    # Half Day
+    # Leave
+    # Overtime
+    # =========================================================
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="today-summary"
+    )
+    def today_summary(self, request):
+
+        # Get current date according to
+        # Django application timezone
+        today = timezone.localdate()
+
+        # Get only today's attendance records
+        queryset = Attendance.objects.filter(
+            attendance_date=today
+        )
+
+        # -----------------------------------------------------
+        # TOTAL
+        # -----------------------------------------------------
+
+        total = queryset.count()
+
+        # -----------------------------------------------------
+        # PRESENT
+        # -----------------------------------------------------
+
+        present = queryset.filter(
+            status="present"
+        ).count()
+
+        # -----------------------------------------------------
+        # ABSENT
+        # -----------------------------------------------------
+
+        absent = queryset.filter(
+            status="absent"
+        ).count()
+
+        # -----------------------------------------------------
+        # HALF DAY
+        #
+        # Half day is counted from the status already
+        # calculated and saved by AttendanceService/import.
+        # -----------------------------------------------------
+
+        half_day = queryset.filter(
+            status="half_day"
+        ).count()
+
+        # -----------------------------------------------------
+        # LEAVE
+        # -----------------------------------------------------
+
+        leave = queryset.filter(
+            status="leave"
+        ).count()
+
+        # -----------------------------------------------------
+        # OVERTIME
+        #
+        # Count employees/attendance records having
+        # overtime greater than 0 minutes.
+        # -----------------------------------------------------
+
+        overtime = queryset.filter(
+            overtime_minutes__gt=0
+        ).count()
+
+        # -----------------------------------------------------
+        # RESPONSE
+        # -----------------------------------------------------
+
+        return Response(
+            {
+                "success": True,
+                "date": today,
+                "data": {
+                    "total": total,
+                    "present": present,
+                    "absent": absent,
+                    "half_day": half_day,
+                    "leave": leave,
+                    "overtime": overtime,
+                }
+            },
+            status=status.HTTP_200_OK
         )
 
 
