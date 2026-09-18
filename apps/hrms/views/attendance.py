@@ -343,7 +343,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         methods=["post"],
         url_path="check-in"
     )
-    def InTime(self, request):
+    def in_time(self, request):
 
         employee_id = request.data.get(
             "employee"
@@ -381,7 +381,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         attendance = AttendanceService.add_punch(
             employee=employee,
             punch_time=now,
-            punch_type="InTime",
+            punch_type="in_time",
             source="manual"
         )
 
@@ -401,7 +401,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         methods=["post"],
         url_path="check-out"
     )
-    def OutTime(self, request):
+    def out_time(self, request):
 
         employee_id = request.data.get(
             "employee"
@@ -439,7 +439,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         attendance = AttendanceService.add_punch(
             employee=employee,
             punch_time=now,
-            punch_type="OutTime",
+            punch_type="out_time",
             source="manual"
         )
 

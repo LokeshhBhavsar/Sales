@@ -112,7 +112,7 @@ class BiometricPunchViewSet(
 
         punch_type = request.data.get(
             "punch_type",
-            "InTime"
+            "in_time"
         )
 
         if not device_id:

@@ -47,12 +47,12 @@
 #         blank=True
 #     )
 
-#     InTime = models.DateTimeField(
+#     in_time = models.DateTimeField(
 #         null=True,
 #         blank=True
 #     )
 
-#     OutTime = models.DateTimeField(
+#     out_time = models.DateTimeField(
 #         null=True,
 #         blank=True
 #     )
@@ -138,18 +138,18 @@ class AttendanceImportRow(models.Model):
         blank=True,
     )
 
-    # Excel InTime value.
+    # Excel in_time value.
     # Example:
     # 2026-07-01 08:23:00
-    InTime = models.DateTimeField(
+    in_time = models.DateTimeField(
         null=True,
         blank=True,
     )
 
-    # Excel OutTime value.
+    # Excel out_time value.
     # Example:
     # 2026-07-01 17:32:00
-    OutTime = models.DateTimeField(
+    out_time = models.DateTimeField(
         null=True,
         blank=True,
     )

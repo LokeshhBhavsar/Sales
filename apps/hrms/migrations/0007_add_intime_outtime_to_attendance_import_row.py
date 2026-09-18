@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="attendanceimportrow",
-            name="InTime",
+            name="in_time",
             field=models.DateTimeField(
                 null=True,
                 blank=True,
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="attendanceimportrow",
-            name="OutTime",
+            name="out_time",
             field=models.DateTimeField(
                 null=True,
                 blank=True,

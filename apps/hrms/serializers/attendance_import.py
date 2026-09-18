@@ -66,8 +66,8 @@ class AttendanceImportRowSerializer(
             "employee",
             "employee_code",
             "attendance_date",
-            "InTime",
-            "OutTime",
+            "in_time",
+            "out_time",
             "status",
             "error_message",
         ]

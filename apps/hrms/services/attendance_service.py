@@ -37,8 +37,8 @@
 #     def create_or_update_attendance(
 #         employee,
 #         attendance_date,
-#         InTime=None,
-#         OutTime=None,
+#         in_time=None,
+#         out_time=None,
 #         source="system",
 #         remarks=""
 #     ):
@@ -54,21 +54,21 @@
 #             }
 #         )
 
-#         if InTime:
+#         if in_time:
 
 #             if (
-#                 attendance.InTime is None
-#                 or InTime < attendance.InTime
+#                 attendance.in_time is None
+#                 or in_time < attendance.in_time
 #             ):
-#                 attendance.InTime = InTime
+#                 attendance.in_time = in_time
 
-#         if OutTime:
+#         if out_time:
 
 #             if (
-#                 attendance.OutTime is None
-#                 or OutTime > attendance.OutTime
+#                 attendance.out_time is None
+#                 or out_time > attendance.out_time
 #             ):
-#                 attendance.OutTime = OutTime
+#                 attendance.out_time = out_time
 
 #         attendance.source = source
 
@@ -86,14 +86,14 @@
 #     @staticmethod
 #     def calculate_attendance(attendance):
 
-#         if not attendance.InTime:
+#         if not attendance.in_time:
 
 #             attendance.status = "absent"
 #             attendance.total_work_minutes = 0
 
 #             return attendance
 
-#         if not attendance.OutTime:
+#         if not attendance.out_time:
 
 #             attendance.status = "present"
 #             attendance.total_work_minutes = 0
@@ -101,8 +101,8 @@
 #             return attendance
 
 #         total_seconds = (
-#             attendance.OutTime -
-#             attendance.InTime
+#             attendance.out_time -
+#             attendance.in_time
 #         ).total_seconds()
 
 #         total_minutes = max(
@@ -157,11 +157,11 @@
 #             minutes=shift.grace_minutes
 #         )
 
-#         if attendance.InTime > grace_time:
+#         if attendance.in_time > grace_time:
 
 #             attendance.late_minutes = int(
 #                 (
-#                     attendance.InTime -
+#                     attendance.in_time -
 #                     grace_time
 #                 ).total_seconds() / 60
 #             )
@@ -189,12 +189,12 @@
 #             shift_end
 #         )
 
-#         if attendance.OutTime < shift_end:
+#         if attendance.out_time < shift_end:
 
 #             attendance.early_leave_minutes = int(
 #                 (
 #                     shift_end -
-#                     attendance.OutTime
+#                     attendance.out_time
 #                 ).total_seconds() / 60
 #             )
 
@@ -265,21 +265,21 @@
 #             device_id=device_id,
 #         )
 
-#         if punch_type == "InTime":
+#         if punch_type == "in_time":
 
 #             if (
-#                 attendance.InTime is None
-#                 or punch_time < attendance.InTime
+#                 attendance.in_time is None
+#                 or punch_time < attendance.in_time
 #             ):
-#                 attendance.InTime = punch_time
+#                 attendance.in_time = punch_time
 
-#         elif punch_type == "OutTime":
+#         elif punch_type == "out_time":
 
 #             if (
-#                 attendance.OutTime is None
-#                 or punch_time > attendance.OutTime
+#                 attendance.out_time is None
+#                 or punch_time > attendance.out_time
 #             ):
-#                 attendance.OutTime = punch_time
+#                 attendance.out_time = punch_time
 
 #         attendance.source = source
 
@@ -344,8 +344,8 @@ class AttendanceService:
     def create_or_update_attendance(
         employee,
         attendance_date,
-        InTime=None,
-        OutTime=None,
+        in_time=None,
+        out_time=None,
         source="system",
         remarks=""
     ):
@@ -368,34 +368,34 @@ class AttendanceService:
         )
 
         # --------------------------------------------------------
-        # Update InTime
+        # Update in_time
         #
-        # Keep the earliest InTime if multiple records exist.
+        # Keep the earliest in_time if multiple records exist.
         # --------------------------------------------------------
 
-        if InTime:
+        if in_time:
 
             if (
-                attendance.InTime is None
-                or InTime < attendance.InTime
+                attendance.in_time is None
+                or in_time < attendance.in_time
             ):
 
-                attendance.InTime = InTime
+                attendance.in_time = in_time
 
         # --------------------------------------------------------
-        # Update OutTime
+        # Update out_time
         #
-        # Keep the latest OutTime if multiple records exist.
+        # Keep the latest out_time if multiple records exist.
         # --------------------------------------------------------
 
-        if OutTime:
+        if out_time:
 
             if (
-                attendance.OutTime is None
-                or OutTime > attendance.OutTime
+                attendance.out_time is None
+                or out_time > attendance.out_time
             ):
 
-                attendance.OutTime = OutTime
+                attendance.out_time = out_time
 
         # --------------------------------------------------------
         # Update source
@@ -435,10 +435,10 @@ class AttendanceService:
     def calculate_attendance(attendance):
 
         # --------------------------------------------------------
-        # No InTime
+        # No in_time
         # --------------------------------------------------------
 
-        if not attendance.InTime:
+        if not attendance.in_time:
 
             attendance.status = "absent"
 
@@ -447,10 +447,10 @@ class AttendanceService:
             return attendance
 
         # --------------------------------------------------------
-        # InTime exists but OutTime doesn't exist
+        # in_time exists but out_time doesn't exist
         # --------------------------------------------------------
 
-        if not attendance.OutTime:
+        if not attendance.out_time:
 
             attendance.status = "present"
 
@@ -463,8 +463,8 @@ class AttendanceService:
         # --------------------------------------------------------
 
         total_seconds = (
-            attendance.OutTime
-            - attendance.InTime
+            attendance.out_time
+            - attendance.in_time
         ).total_seconds()
 
         total_minutes = max(
@@ -534,11 +534,11 @@ class AttendanceService:
             )
         )
 
-        if attendance.InTime > grace_time:
+        if attendance.in_time > grace_time:
 
             attendance.late_minutes = int(
                 (
-                    attendance.InTime
+                    attendance.in_time
                     - grace_time
                 ).total_seconds() / 60
             )
@@ -570,12 +570,12 @@ class AttendanceService:
             shift_end
         )
 
-        if attendance.OutTime < shift_end:
+        if attendance.out_time < shift_end:
 
             attendance.early_leave_minutes = int(
                 (
                     shift_end
-                    - attendance.OutTime
+                    - attendance.out_time
                 ).total_seconds() / 60
             )
 
@@ -671,27 +671,27 @@ class AttendanceService:
         # IN TIME PUNCH
         # ========================================================
 
-        if punch_type == "InTime":
+        if punch_type == "in_time":
 
             if (
-                attendance.InTime is None
-                or punch_time < attendance.InTime
+                attendance.in_time is None
+                or punch_time < attendance.in_time
             ):
 
-                attendance.InTime = punch_time
+                attendance.in_time = punch_time
 
         # ========================================================
         # OUT TIME PUNCH
         # ========================================================
 
-        elif punch_type == "OutTime":
+        elif punch_type == "out_time":
 
             if (
-                attendance.OutTime is None
-                or punch_time > attendance.OutTime
+                attendance.out_time is None
+                or punch_time > attendance.out_time
             ):
 
-                attendance.OutTime = punch_time
+                attendance.out_time = punch_time
 
         # --------------------------------------------------------
         # Update source

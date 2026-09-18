@@ -10,8 +10,8 @@ from apps.hrms.models.attendance import Attendance
 class AttendanceLog(models.Model):
 
     PUNCH_TYPE_CHOICES = (
-        ("InTime", "InTime"),
-        ("OutTime", "OutTime"),
+        ("in_time", "in_time"),
+        ("out_time", "out_time"),
         ("break_in", "Break In"),
         ("break_out", "Break Out"),
     )

@@ -60,8 +60,8 @@
 #             required_headers = [
 #                 "employee_code",
 #                 "date",
-#                 "InTime",
-#                 "OutTime",
+#                 "in_time",
+#                 "out_time",
 #             ]
 
 #             missing_headers = [
@@ -105,12 +105,12 @@
 #                     header_map["date"]
 #                 ]
 
-#                 InTime = row[
-#                     header_map["InTime"]
+#                 in_time = row[
+#                     header_map["in_time"]
 #                 ]
 
-#                 OutTime = row[
-#                     header_map["OutTime"]
+#                 out_time = row[
+#                     header_map["out_time"]
 #                 ]
 
 #                 import_row = AttendanceImportRow.objects.create(
@@ -155,34 +155,34 @@
 #                         )
 
 #                     if isinstance(
-#                         InTime,
+#                         in_time,
 #                         datetime
 #                     ):
-#                         InTime_datetime = InTime
+#                         in_time_datetime = in_time
 
 #                     else:
-#                         InTime_datetime = None
+#                         in_time_datetime = None
 
 #                     if isinstance(
-#                         OutTime,
+#                         out_time,
 #                         datetime
 #                     ):
-#                         OutTime_datetime = OutTime
+#                         out_time_datetime = out_time
 
 #                     else:
-#                         OutTime_datetime = None
+#                         out_time_datetime = None
 
 #                     import_row.employee = employee
 #                     import_row.attendance_date = (
 #                         attendance_date
 #                     )
 
-#                     import_row.InTime = (
-#                         InTime_datetime
+#                     import_row.in_time = (
+#                         in_time_datetime
 #                     )
 
-#                     import_row.OutTime = (
-#                         OutTime_datetime
+#                     import_row.out_time = (
+#                         out_time_datetime
 #                     )
 
 #                     import_row.save()
@@ -190,8 +190,8 @@
 #                     AttendanceService.create_or_update_attendance(
 #                         employee=employee,
 #                         attendance_date=attendance_date,
-#                         InTime=InTime_datetime,
-#                         OutTime=OutTime_datetime,
+#                         in_time=in_time_datetime,
+#                         out_time=out_time_datetime,
 #                         source="excel"
 #                     )
 
@@ -673,8 +673,8 @@ class ExcelAttendanceService:
                 #
                 # Employee:
                 # Status
-                # InTime
-                # OutTime
+                # in_time
+                # out_time
                 #
                 # We search dynamically instead of assuming
                 # fixed row positions.
@@ -682,9 +682,9 @@ class ExcelAttendanceService:
 
                 status_row = None
 
-                intime_row = None
+                in_time_row = None
 
-                outtime_row = None
+                out_time_row = None
 
                 for search_index in range(
                     employee_row_index + 1,
@@ -709,27 +709,27 @@ class ExcelAttendanceService:
 
                         status_row = search_index
 
-                    elif first_value == "intime":
+                    elif first_value == "in_time":
 
-                        intime_row = search_index
+                        in_time_row = search_index
 
-                    elif first_value == "outtime":
+                    elif first_value == "out_time":
 
-                        outtime_row = search_index
+                        out_time_row = search_index
 
                 # ------------------------------------------------
                 # Fallback positions
                 # ------------------------------------------------
 
-                if intime_row is None:
+                if in_time_row is None:
 
-                    intime_row = (
+                    in_time_row = (
                         employee_row_index + 2
                     )
 
-                if outtime_row is None:
+                if out_time_row is None:
 
-                    outtime_row = (
+                    out_time_row = (
                         employee_row_index + 3
                     )
 
@@ -789,15 +789,15 @@ class ExcelAttendanceService:
                     check_in_value = None
 
                     if (
-                        intime_row is not None
-                        and intime_row < len(rows)
+                        in_time_row is not None
+                        and in_time_row < len(rows)
                         and column_index < len(
-                            rows[intime_row]
+                            rows[in_time_row]
                         )
                     ):
 
                         check_in_value = rows[
-                            intime_row
+                            in_time_row
                         ][column_index]
 
                     # =================================================
@@ -807,15 +807,15 @@ class ExcelAttendanceService:
                     check_out_value = None
 
                     if (
-                        outtime_row is not None
-                        and outtime_row < len(rows)
+                        out_time_row is not None
+                        and out_time_row < len(rows)
                         and column_index < len(
-                            rows[outtime_row]
+                            rows[out_time_row]
                         )
                     ):
 
                         check_out_value = rows[
-                            outtime_row
+                            out_time_row
                         ][column_index]
 
                     # =================================================
@@ -881,8 +881,8 @@ class ExcelAttendanceService:
                         #
                         # IMPORTANT:
                         # Your AttendanceImportRow model uses:
-                        #     InTime
-                        #     OutTime
+                        #     in_time
+                        #     out_time
                         #
                         # NOT:
                         #     check_in
@@ -895,11 +895,11 @@ class ExcelAttendanceService:
                             attendance_date
                         )
 
-                        import_row.InTime = (
+                        import_row.in_time = (
                             check_in_datetime
                         )
 
-                        import_row.OutTime = (
+                        import_row.out_time = (
                             check_out_datetime
                         )
 
@@ -916,8 +916,8 @@ class ExcelAttendanceService:
                         AttendanceService.create_or_update_attendance(
                         employee=employee,
                         attendance_date=attendance_date,
-                        InTime=check_in_datetime,
-                        OutTime=check_out_datetime,
+                        in_time=check_in_datetime,
+                        out_time=check_out_datetime,
                         source="excel"
                         )
 
