@@ -59,7 +59,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from apps.accounts.permissions import (
-    IsPlantHROrSuperAdmin,
+    # IsPlantHROrSuperAdmin,
+    IsSuperAdmin,
 )
 
 from apps.hrms.serializers.user_serializer import (
@@ -81,7 +82,8 @@ class UserCreateView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsPlantHROrSuperAdmin,
+        # IsPlantHROrSuperAdmin,
+        IsSuperAdmin,
     ]
 
     def post(self, request):
@@ -155,7 +157,8 @@ class UserListView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsPlantHROrSuperAdmin,
+        # IsPlantHROrSuperAdmin,
+        IsSuperAdmin,
     ]
 
     # =====================================================
@@ -366,7 +369,8 @@ class UserDetailView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsPlantHROrSuperAdmin,
+        # IsPlantHROrSuperAdmin,
+        IsSuperAdmin,
     ]
 
     def get(self, request, user_id):
