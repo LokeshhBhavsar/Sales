@@ -465,6 +465,7 @@ class AuthService:
 
             roles_data.append({
                 "roleKey": role.code,
+                "name": role.name,
                 "scope": role.scope.strip().lower(),
                 "permissions": permissions,
             })
