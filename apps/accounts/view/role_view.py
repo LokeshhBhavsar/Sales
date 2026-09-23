@@ -61,6 +61,7 @@ class RoleCreateView(APIView):
         IsAuthenticated,
         IsSuperAdmin
     ]
+    
 
     def post(self, request):
 
@@ -145,82 +146,82 @@ class RoleDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def put(self, request, role_id):
+    # def put(self, request, role_id):
 
-        if not request.user.is_superuser:
-            return Response(
-                {
-                    "message": "Only Super Admin can update roles."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+    #     if not request.user.is_superuser:
+    #         return Response(
+    #             {
+    #                 "message": "Only Super Admin can update roles."
+    #             },
+    #             status=status.HTTP_403_FORBIDDEN,
+    #         )
 
-        try:
-            role = RoleService.get_role(
-                role_id
-            )
+        # try:
+        #     role = RoleService.get_role(
+        #         role_id
+        #     )
 
-        except Role.DoesNotExist:
-            return Response(
-                {
-                    "message": "Role not found."
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        # except Role.DoesNotExist:
+        #     return Response(
+        #         {
+        #             "message": "Role not found."
+        #         },
+        #         status=status.HTTP_404_NOT_FOUND,
+        #     )
 
-        serializer = RoleUpdateSerializer(
-            role,
-            data=request.data,
-            partial=True,
-        )
+        # serializer = RoleUpdateSerializer(
+        #     role,
+        #     data=request.data,
+        #     partial=True,
+        # )
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        # serializer.is_valid(
+        #     raise_exception=True
+        # )
 
-        role = RoleService.update_role(
-            role,
-            serializer.validated_data,
-        )
+        # role = RoleService.update_role(
+        #     role,
+        #     serializer.validated_data,
+        # )
 
-        return Response(
-            {
-                "message": "Role updated successfully.",
-                "data": RoleListSerializer(role).data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        # return Response(
+        #     {
+        #         "message": "Role updated successfully.",
+        #         "data": RoleListSerializer(role).data,
+        #     },
+        #     status=status.HTTP_200_OK,
+        # )
 
-    def delete(self, request, role_id):
+    # def delete(self, request, role_id):
 
-        if not request.user.is_superuser:
-            return Response(
-                {
-                    "message": "Only Super Admin can delete roles."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+    #     if not request.user.is_superuser:
+    #         return Response(
+    #             {
+    #                 "message": "Only Super Admin can delete roles."
+    #             },
+    #             status=status.HTTP_403_FORBIDDEN,
+    #         )
 
-        try:
-            role = RoleService.get_role(
-                role_id
-            )
+    #     try:
+    #         role = RoleService.get_role(
+    #             role_id
+    #         )
 
-        except Role.DoesNotExist:
-            return Response(
-                {
-                    "message": "Role not found."
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
+    #     except Role.DoesNotExist:
+    #         return Response(
+    #             {
+    #                 "message": "Role not found."
+    #             },
+    #             status=status.HTTP_404_NOT_FOUND,
+    #         )
 
-        RoleService.delete_role(
-            role
-        )
+    #     RoleService.delete_role(
+    #         role
+    #     )
 
-        return Response(
-            {
-                "message": "Role deleted successfully."
-            },
-            status=status.HTTP_204_NO_CONTENT,
-        )
+    #     return Response(
+    #         {
+    #             "message": "Role deleted successfully."
+    #         },
+    #         status=status.HTTP_204_NO_CONTENT,
+    #     )

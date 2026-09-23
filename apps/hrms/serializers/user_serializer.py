@@ -189,90 +189,120 @@ class CreateUserSerializer(serializers.Serializer):
                     "User with this email already exists."
             })
 
+        # # =====================================================
+        # # CHECK SUPER ADMIN
+        # # =====================================================
+
+        # is_super_admin = UserService.is_super_admin(
+        #     requesting_user
+        # )
+
+        # # =====================================================
+        # # CHECK PLANT HR
+        # # =====================================================
+
+        # is_plant_hr = requesting_user.assigned_roles.filter(
+        #     role__code__in=[
+        #         "PLANT_HR",
+        #         "HR_MANAGER",
+        #     ],
+        #     role__scope="plant",
+        #     role__is_active=True
+        # ).exists()
+
+        # # =====================================================
+        # # AUTHORIZATION
+        # # =====================================================
+
+        # if not is_super_admin and not is_plant_hr:
+
+        #     raise serializers.ValidationError({
+        #         "permission":
+        #             "You are not allowed to create users."
+        #     })
         # =====================================================
-        # CHECK SUPER ADMIN
-        # =====================================================
+# # CHECK SUPER ADMIN
+# # =====================================================
 
-        is_super_admin = UserService.is_super_admin(
-            requesting_user
-        )
+#         is_super_admin = UserService.is_super_admin(
+#             requesting_user
+#         )
 
-        # =====================================================
-        # CHECK PLANT HR
-        # =====================================================
+# # =====================================================
+# # CHECK PLANT HR
+# # =====================================================
 
-        is_plant_hr = requesting_user.assigned_roles.filter(
-            role__code__in=[
-                "PLANT_HR",
-                "HR_MANAGER",
-            ],
-            role__scope="plant",
-            role__is_active=True
-        ).exists()
+#         is_plant_hr = requesting_user.assigned_roles.filter(
+#         role__code__in=[
+#             "PLANT_HR",
+#             "HR_MANAGER",
+#         ],
+#         role__scope="plant",
+#         role__is_active=True
+#     ).exists()
 
-        # =====================================================
-        # AUTHORIZATION
-        # =====================================================
+# # =====================================================
+# # AUTHORIZATION
+# # =====================================================
 
-        if not is_super_admin and not is_plant_hr:
+#         if not is_super_admin and not is_plant_hr:
 
-            raise serializers.ValidationError({
-                "permission":
-                    "You are not allowed to create users."
-            })
-
+#             raise serializers.ValidationError({
+#             "permission":
+#             "You are not allowed to create users."
+#     })
         # =====================================================
         # PLANT HR RESTRICTION
         # =====================================================
 
-        if not is_super_admin:
+        # if not is_super_admin:
 
-            # -------------------------------------------------
-            # COMPANY
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # COMPANY
+        #     # -------------------------------------------------
 
-            if (
-                not requesting_user.company_id
-                or
-                str(requesting_user.company_id)
-                != str(attrs["company"])
-            ):
+        #     if (
+        #         not requesting_user.company_id
+        #         or
+        #         str(requesting_user.company_id)
+        #         != str(attrs["company"])
+        #     ):
 
-                raise serializers.ValidationError({
-                    "company":
-                        "You can only create users "
-                        "within your company."
-                })
+        #         raise serializers.ValidationError({
+        #             "company":
+        #                 "You can only create users "
+        #                 "within your company."
+        #         })
 
-            # -------------------------------------------------
-            # PLANT
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # PLANT
+        #     # -------------------------------------------------
 
-            if not requesting_user.plant_id:
+        #     if not requesting_user.plant_id:
 
-                raise serializers.ValidationError({
-                    "plant":
-                        "Your account is not assigned to a plant."
-                })
+        #         raise serializers.ValidationError({
+        #             "plant":
+        #                 "Your account is not assigned to a plant."
+        #         })
 
-            if not plant:
+        #     if not plant:
 
-                raise serializers.ValidationError({
-                    "plant":
-                        "Plant is required for Plant HR "
-                        "user creation."
-                })
+        #         raise serializers.ValidationError({
+        #             "plant":
+        #                 "Plant is required for Plant HR "
+        #                 "user creation."
+        #         })
 
-            if (
-                str(requesting_user.plant_id)
-                != str(plant)
-            ):
+        #     if (
+        #         str(requesting_user.plant_id)
+        #         != str(plant)
+        #     ):
 
-                raise serializers.ValidationError({
-                    "plant":
-                        "You can only create users "
-                        "within your plant."
-                })
+        #         raise serializers.ValidationError({
+        #             "plant":
+        #                 "You can only create users "
+        #                 "within your plant."
+        #         })
 
         # =====================================================
         # FETCH ROLES
@@ -477,24 +507,24 @@ class CreateUserSerializer(serializers.Serializer):
                             "to employee's department."
                     })
 
-        # =====================================================
-        # PLANT HR CAN ONLY ASSIGN DEPARTMENT ROLES
-        # =====================================================
+        # # =====================================================
+        # # PLANT HR CAN ONLY ASSIGN DEPARTMENT ROLES
+        # # =====================================================
 
-        if not is_super_admin:
+        # if not is_super_admin:
 
-            for role in roles:
+        #     for role in roles:
 
-                if role.scope != "department":
+        #         if role.scope != "department":
 
-                    raise serializers.ValidationError({
-                        "role_ids": (
-                            f"Plant HR cannot assign "
-                            f"'{role.name}'. "
-                            "Only department-level roles "
-                            "can be assigned."
-                        )
-                    })
+        #             raise serializers.ValidationError({
+        #                 "role_ids": (
+        #                     f"Plant HR cannot assign "
+        #                     f"'{role.name}'. "
+        #                     "Only department-level roles "
+        #                     "can be assigned."
+        #                 )
+        #             })
 
         # =====================================================
         # SAVE ROLES FOR SERVICE

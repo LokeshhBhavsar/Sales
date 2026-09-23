@@ -5,10 +5,10 @@ from rest_framework.views import APIView
 
 from apps.accounts.authentication import JWTAuthentication
 
-from apps.masters.permissions.company_permission import (
-    IsSuperAdmin,
-    IsSuperAdminOrCompanyAdmin,
-)
+# from apps.masters.permissions.company_permission import (
+#     IsSuperAdmin,
+#     IsSuperAdminOrCompanyAdmin,
+# )
 from apps.masters.serializers.company_serializer import (
     CompanyCreateSerializer,
     CompanyListSerializer,
@@ -21,7 +21,8 @@ from apps.masters.services.company_service import CompanyService
 class CompanyListCreateView(APIView):
 
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    # permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
 
@@ -85,19 +86,19 @@ class CompanyDetailView(APIView):
 
         company = CompanyService.get_company(company_id)
 
-        permission = IsSuperAdminOrCompanyAdmin()
+        # permission = IsSuperAdminOrCompanyAdmin()
 
-        if not permission.has_object_permission(
-            request,
-            self,
-            company
-        ):
-            return Response(
-                {
-                    "message": permission.message
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # if not permission.has_object_permission(
+        #     request,
+        #     self,
+        #     company
+        # ):
+        #     return Response(
+        #         {
+        #             "message": permission.message
+        #         },
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         serializer = CompanyDetailSerializer(company)
 
@@ -114,15 +115,15 @@ class CompanyDetailView(APIView):
 
     def put(self, request, company_id):
 
-        permission = IsSuperAdmin()
+        # permission = IsSuperAdmin()
 
-        if not permission.has_permission(request, self):
-            return Response(
-                {
-                    "message": permission.message
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # if not permission.has_permission(request, self):
+        #     return Response(
+        #         {
+        #             "message": permission.message
+        #         },
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         company = CompanyService.get_company(company_id)
 
@@ -154,15 +155,15 @@ class CompanyDetailView(APIView):
 
     def patch(self, request, company_id):
 
-        permission = IsSuperAdmin()
+        # permission = IsSuperAdmin()
 
-        if not permission.has_permission(request, self):
-            return Response(
-                {
-                    "message": permission.message
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # if not permission.has_permission(request, self):
+        #     return Response(
+        #         {
+        #             "message": permission.message
+        #         },
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         company = CompanyService.get_company(company_id)
 
@@ -195,15 +196,15 @@ class CompanyDetailView(APIView):
 
     def delete(self, request, company_id):
 
-        permission = IsSuperAdmin()
+        # permission = IsSuperAdmin()
 
-        if not permission.has_permission(request, self):
-            return Response(
-                {
-                    "message": permission.message
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # if not permission.has_permission(request, self):
+        #     return Response(
+        #         {
+        #             "message": permission.message
+        #         },
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         company = CompanyService.get_company(company_id)
 

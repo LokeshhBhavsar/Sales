@@ -685,99 +685,99 @@ class UserService:
         # SUPER ADMIN
         # =====================================================
 
-        if UserService.is_super_admin(logged_in_user):
+        # if UserService.is_super_admin(logged_in_user):
 
-            # -------------------------------------------------
-            # If Super Admin has company assigned
-            # restrict to that company.
-            #
-            # If Super Admin has NO company:
-            # allow company filter to determine the company.
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # If Super Admin has company assigned
+        #     # restrict to that company.
+        #     #
+        #     # If Super Admin has NO company:
+        #     # allow company filter to determine the company.
+        #     # -------------------------------------------------
 
-            if logged_in_user.company_id:
+        #     if logged_in_user.company_id:
 
-                queryset = queryset.filter(
-                    company_id=logged_in_user.company_id
-                )
+        #         queryset = queryset.filter(
+        #             company_id=logged_in_user.company_id
+        #         )
 
-                # Requested company must match logged-in SA
-                if company_id:
+        #         # Requested company must match logged-in SA
+        #         if company_id:
 
-                    if str(company_id) != str(
-                        logged_in_user.company_id
-                    ):
-                        return User.objects.none()
+        #             if str(company_id) != str(
+        #                 logged_in_user.company_id
+        #             ):
+        #                 return User.objects.none()
 
-                    queryset = queryset.filter(
-                        company_id=company_id
-                    )
+        #             queryset = queryset.filter(
+        #                 company_id=company_id
+        #             )
 
-            else:
+        #     else:
 
-                # Global Super Admin
-                if company_id:
-                    queryset = queryset.filter(
-                        company_id=company_id
-                    )
+        #         # Global Super Admin
+        #         if company_id:
+        #             queryset = queryset.filter(
+        #                 company_id=company_id
+        #             )
 
-        # =====================================================
-        # HR / PLANT HR
-        # =====================================================
+        # # =====================================================
+        # # HR / PLANT HR
+        # # =====================================================
 
-        elif UserService.is_hr(logged_in_user):
+        # elif UserService.is_hr(logged_in_user):
 
-            # -------------------------------------------------
-            # HR must have company
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # HR must have company
+        #     # -------------------------------------------------
 
-            if not logged_in_user.company_id:
-                return User.objects.none()
+        #     if not logged_in_user.company_id:
+        #         return User.objects.none()
 
-            # -------------------------------------------------
-            # HR must have plant
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # HR must have plant
+        #     # -------------------------------------------------
 
-            if not logged_in_user.plant_id:
-                return User.objects.none()
+        #     if not logged_in_user.plant_id:
+        #         return User.objects.none()
 
-            # -------------------------------------------------
-            # HR can only see own company + own plant
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # HR can only see own company + own plant
+        #     # -------------------------------------------------
 
-            queryset = queryset.filter(
-                company_id=logged_in_user.company_id,
-                plant_id=logged_in_user.plant_id,
-            )
+        #     queryset = queryset.filter(
+        #         company_id=logged_in_user.company_id,
+        #         plant_id=logged_in_user.plant_id,
+        #     )
 
-            # -------------------------------------------------
-            # Company validation
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # Company validation
+        #     # -------------------------------------------------
 
-            if company_id:
+        #     if company_id:
 
-                if str(company_id) != str(
-                    logged_in_user.company_id
-                ):
-                    return User.objects.none()
+        #         if str(company_id) != str(
+        #             logged_in_user.company_id
+        #         ):
+        #             return User.objects.none()
 
-            # -------------------------------------------------
-            # Plant validation
-            # -------------------------------------------------
+        #     # -------------------------------------------------
+        #     # Plant validation
+        #     # -------------------------------------------------
 
-            if plant_id:
+        #     if plant_id:
 
-                if str(plant_id) != str(
-                    logged_in_user.plant_id
-                ):
-                    return User.objects.none()
+        #         if str(plant_id) != str(
+        #             logged_in_user.plant_id
+        #         ):
+        #             return User.objects.none()
 
-        # =====================================================
-        # OTHER USERS
-        # =====================================================
+        # # =====================================================
+        # # OTHER USERS
+        # # =====================================================
 
-        else:
-            return User.objects.none()
+        # else:
+        #     return User.objects.none()
 
         # =====================================================
         # ORGANIZATION FILTERS
