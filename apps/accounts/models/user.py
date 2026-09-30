@@ -140,7 +140,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         related_name="users"
     )
-
+    encrypted_password = models.TextField(
+    null=True,
+    blank=True
+)
     department = models.ForeignKey(
         Department,
         on_delete=models.SET_NULL,
@@ -166,8 +169,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     # --------------------------------------------------
 
     email = models.EmailField(
-        unique=True
-    )
+    unique=True,
+    null=True,
+    blank=True
+)
 
     first_name = models.CharField(
         max_length=100

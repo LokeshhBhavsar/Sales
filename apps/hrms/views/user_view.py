@@ -411,6 +411,7 @@ from apps.hrms.serializers.user_serializer import (
     CreateUserSerializer,
     UserListSerializer,
     UserSerializer,
+    UserUpdateSerializer,
 )
 
 from apps.hrms.services.user_service import (
@@ -648,6 +649,89 @@ class UserDetailView(APIView):
             {
                 "success": True,
                 "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+        # =====================================================
+    # UPDATE USER
+    # =====================================================
+
+    def put(self, request, user_id):
+
+        user = UserService.get_user_by_id(
+            logged_in_user=request.user,
+            user_id=user_id,
+        )
+
+        if not user:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "User not found or you do not "
+                        "have permission to update this user."
+                    ),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = UserUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True,
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        user = UserService.update_user(
+            user,
+            serializer.validated_data,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "User updated successfully.",
+                "data": UserSerializer(user).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # =====================================================
+    # DELETE USER
+    # =====================================================
+
+    def delete(self, request, user_id):
+
+        user = UserService.get_user_by_id(
+            logged_in_user=request.user,
+            user_id=user_id,
+        )
+
+        if not user:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "User not found or you do not "
+                        "have permission to delete this user."
+                    ),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        UserService.delete_user(
+            user
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "User deleted successfully.",
             },
             status=status.HTTP_200_OK,
         )

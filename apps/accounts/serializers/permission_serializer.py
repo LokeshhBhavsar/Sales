@@ -170,8 +170,8 @@ class PermissionCreateSerializer(
 
         fields = [
             "company",
-            "plant",
-            "department",
+            # "plant",
+            # "department",
             "scope",
             "module",
             "action",
@@ -186,8 +186,10 @@ class PermissionCreateSerializer(
         # =====================================================
 
         company = attrs.get("company")
-        plant = attrs.get("plant")
-        department = attrs.get("department")
+        # plant = attrs.get("plant")
+        # department = attrs.get("department")
+        plant = None
+        department = None
 
         scope = attrs.get("scope")
         module = attrs.get("module")
@@ -245,15 +247,12 @@ class PermissionCreateSerializer(
         # SCOPE VALIDATION
         # =====================================================
 
-        if scope not in [
-            "company",
-            "plant",
-            "department",
-        ]:
+        if scope != "company":
+
             raise serializers.ValidationError({
                 "scope": (
                     "Invalid permission scope. "
-                    "Allowed values: company, plant, department."
+                    "Only company scope is allowed."
                 )
             })
 
@@ -270,57 +269,57 @@ class PermissionCreateSerializer(
         # PLANT SCOPE
         # =====================================================
 
-        elif scope == "plant":
+        # elif scope == "plant":
 
-            if not plant:
-                raise serializers.ValidationError({
-                    "plant": "Plant is required."
-                })
+        #     if not plant:
+        #         raise serializers.ValidationError({
+        #             "plant": "Plant is required."
+        #         })
 
-            if plant.company_id != company.id:
-                raise serializers.ValidationError({
-                    "plant": (
-                        "Plant does not belong to "
-                        "selected company."
-                    )
-                })
+        #     if plant.company_id != company.id:
+        #         raise serializers.ValidationError({
+        #             "plant": (
+        #                 "Plant does not belong to "
+        #                 "selected company."
+        #             )
+        #         })
 
-            # Department is not allowed for plant scope
-            attrs["department"] = None
+        #     # Department is not allowed for plant scope
+        #     attrs["department"] = None
 
-        # =====================================================
-        # DEPARTMENT SCOPE
-        # =====================================================
+        # # =====================================================
+        # # DEPARTMENT SCOPE
+        # # =====================================================
 
-        elif scope == "department":
+        # elif scope == "department":
 
-            if not plant:
-                raise serializers.ValidationError({
-                    "plant": "Plant is required."
-                })
+        #     if not plant:
+        #         raise serializers.ValidationError({
+        #             "plant": "Plant is required."
+        #         })
 
-            if not department:
-                raise serializers.ValidationError({
-                    "department": "Department is required."
-                })
+        #     if not department:
+        #         raise serializers.ValidationError({
+        #             "department": "Department is required."
+        #         })
 
-            # Plant must belong to company
-            if plant.company_id != company.id:
-                raise serializers.ValidationError({
-                    "plant": (
-                        "Plant does not belong to "
-                        "selected company."
-                    )
-                })
+        #     # Plant must belong to company
+        #     if plant.company_id != company.id:
+        #         raise serializers.ValidationError({
+        #             "plant": (
+        #                 "Plant does not belong to "
+        #                 "selected company."
+        #             )
+        #         })
 
-            # Department must belong to plant
-            if department.plant_id != plant.id:
-                raise serializers.ValidationError({
-                    "department": (
-                        "Department does not belong to "
-                        "selected plant."
-                    )
-                })
+        #     # Department must belong to plant
+        #     if department.plant_id != plant.id:
+        #         raise serializers.ValidationError({
+        #             "department": (
+        #                 "Department does not belong to "
+        #                 "selected plant."
+        #             )
+        #         })
 
         # =====================================================
         # GENERATE CODE

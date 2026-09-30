@@ -306,17 +306,17 @@ class PermissionService:
         # VALIDATE SCOPE
         # -----------------------------------------------------
 
-        if scope not in [
-            "company",
-            "plant",
-            "department",
-        ]:
+        if scope != "company":
+
             raise ValidationError({
                 "scope": (
                     "Invalid permission scope. "
-                    "Allowed values: company, plant, department."
-                )
-            })
+                    "Only company scope is allowed."
+            )
+        })
+            
+        plant = None
+        department = None
 
         # -----------------------------------------------------
         # COMPANY SCOPE
@@ -331,63 +331,63 @@ class PermissionService:
         # PLANT SCOPE
         # -----------------------------------------------------
 
-        elif scope == "plant":
+        # elif scope == "plant":
 
-            if not plant:
-                raise ValidationError({
-                    "plant": (
-                        "Plant is required "
-                        "for plant scope."
-                    )
-                })
+        #     if not plant:
+        #         raise ValidationError({
+        #             "plant": (
+        #                 "Plant is required "
+        #                 "for plant scope."
+        #             )
+        #         })
 
-            if plant.company_id != company.id:
-                raise ValidationError({
-                    "plant": (
-                        "Plant does not belong "
-                        "to selected company."
-                    )
-                })
+        #     if plant.company_id != company.id:
+        #         raise ValidationError({
+        #             "plant": (
+        #                 "Plant does not belong "
+        #                 "to selected company."
+        #             )
+        #         })
 
-            department = None
+        #     department = None
 
         # -----------------------------------------------------
         # DEPARTMENT SCOPE
         # -----------------------------------------------------
 
-        elif scope == "department":
+        # elif scope == "department":
 
-            if not plant:
-                raise ValidationError({
-                    "plant": (
-                        "Plant is required "
-                        "for department scope."
-                    )
-                })
+        #     if not plant:
+        #         raise ValidationError({
+        #             "plant": (
+        #                 "Plant is required "
+        #                 "for department scope."
+        #             )
+        #         })
 
-            if not department:
-                raise ValidationError({
-                    "department": (
-                        "Department is required "
-                        "for department scope."
-                    )
-                })
+        #     if not department:
+        #         raise ValidationError({
+        #             "department": (
+        #                 "Department is required "
+        #                 "for department scope."
+        #             )
+        #         })
 
-            if plant.company_id != company.id:
-                raise ValidationError({
-                    "plant": (
-                        "Plant does not belong "
-                        "to selected company."
-                    )
-                })
+        #     if plant.company_id != company.id:
+        #         raise ValidationError({
+        #             "plant": (
+        #                 "Plant does not belong "
+        #                 "to selected company."
+        #             )
+        #         })
 
-            if department.plant_id != plant.id:
-                raise ValidationError({
-                    "department": (
-                        "Department does not belong "
-                        "to selected plant."
-                    )
-                })
+        #     if department.plant_id != plant.id:
+        #         raise ValidationError({
+        #             "department": (
+        #                 "Department does not belong "
+        #                 "to selected plant."
+        #             )
+        #         })
 
         # -----------------------------------------------------
         # DUPLICATE CHECK

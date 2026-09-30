@@ -70,6 +70,29 @@ from apps.accounts.models.role_permission import RolePermission
 
 class RolePermissionService:
 
+    # @staticmethod
+    # @transaction.atomic
+    # def assign_permission(validated_data):
+
+    #     role = validated_data["role"]
+
+    #     permission = validated_data["permission"]
+
+    #     if RolePermission.objects.filter(
+    #         role=role,
+    #         permission=permission
+    #     ).exists():
+
+    #         raise ValidationError({
+    #             "permission":
+    #                 "Permission already assigned to this role."
+    #         })
+
+    #     return RolePermission.objects.create(
+    #         role=role,
+    #         permission=permission
+    #     )
+
     @staticmethod
     @transaction.atomic
     def assign_permission(validated_data):
@@ -77,6 +100,51 @@ class RolePermissionService:
         role = validated_data["role"]
 
         permission = validated_data["permission"]
+
+        # -------------------------------------------------
+        # VALIDATE ROLE SCOPE
+        # -------------------------------------------------
+
+        if role.scope not in ["company", "plant"]:
+
+            raise ValidationError({
+                "role_id": (
+                    f"Role '{role.name}' uses unsupported "
+                    f"scope '{role.scope}'. "
+                    "Only company and plant roles "
+                    "are allowed."
+                )
+            })
+
+        # -------------------------------------------------
+        # VALIDATE PERMISSION SCOPE
+        # -------------------------------------------------
+
+        if permission.scope != "company":
+
+            raise ValidationError({
+                "permission": (
+                    "Only company-level permissions "
+                    "can be assigned to roles."
+                )
+            })
+
+        # -------------------------------------------------
+        # VALIDATE COMPANY
+        # -------------------------------------------------
+
+        if role.company_id != permission.company_id:
+
+            raise ValidationError({
+                "permission": (
+                    "Permission does not belong "
+                    "to role company."
+                )
+            })
+
+        # -------------------------------------------------
+        # DUPLICATE
+        # -------------------------------------------------
 
         if RolePermission.objects.filter(
             role=role,
@@ -93,9 +161,9 @@ class RolePermissionService:
             permission=permission
         )
 
-    # =========================================================
+    # =====================================================
     # BULK ASSIGN
-    # =========================================================
+    # =====================================================
 
     @staticmethod
     @transaction.atomic
@@ -106,6 +174,49 @@ class RolePermissionService:
 
         created = []
         already_assigned = []
+
+        # -----------------------------------------------------
+        # VALIDATE ROLE SCOPE
+        # -----------------------------------------------------
+
+        if role.scope not in ["company", "plant"]:
+
+            raise ValidationError({
+                "role_id": (
+                    f"Role '{role.name}' uses unsupported "
+                    f"scope '{role.scope}'. "
+                    "Only company and plant roles "
+                    "are allowed."
+                )
+            })
+
+        # -----------------------------------------------------
+        # VALIDATE PERMISSIONS
+        # -----------------------------------------------------
+
+        for permission in permissions:
+
+            # Only company permissions are allowed
+            if permission.scope != "company":
+
+                raise ValidationError({
+                    "permission": (
+                        f"Permission '{permission.code}' "
+                        "is not a company-level permission. "
+                        "Only company-level permissions "
+                        "can be assigned to roles."
+                    )
+                })
+
+            # Permission and role must belong to same company
+            if role.company_id != permission.company_id:
+
+                raise ValidationError({
+                    "permission": (
+                        f"Permission '{permission.code}' "
+                        "does not belong to role company."
+                    )
+                })
 
         # -----------------------------------------------------
         # Existing assignments

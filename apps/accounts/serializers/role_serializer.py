@@ -121,7 +121,7 @@ class RoleCreateSerializer(serializers.ModelSerializer):
         fields = [
             "company",
             "plant",
-            "department",
+            # "department",
             "scope",
             "name",
             "code",
@@ -141,9 +141,10 @@ class RoleCreateSerializer(serializers.ModelSerializer):
 
         company = attrs.get("company")
         plant = attrs.get("plant")
-        department = attrs.get("department")
+        # department = attrs.get("department")
         scope = attrs.get("scope")
-
+        # Department scope is disabled for Role creation.
+        department = None
         # -----------------------------------------------------
         # COMPANY
         # -----------------------------------------------------
@@ -219,39 +220,39 @@ class RoleCreateSerializer(serializers.ModelSerializer):
         # DEPARTMENT LEVEL
         # =====================================================
 
-        elif scope == "department":
+        # elif scope == "department":
 
-            if not plant:
+        #     if not plant:
 
-                raise serializers.ValidationError({
-                    "plant":
-                    "Plant is required for department-level role."
-                })
+        #         raise serializers.ValidationError({
+        #             "plant":
+        #             "Plant is required for department-level role."
+        #         })
 
-            if not department:
+        #     if not department:
 
-                raise serializers.ValidationError({
-                    "department":
-                    "Department is required for department-level role."
-                })
+        #         raise serializers.ValidationError({
+        #             "department":
+        #             "Department is required for department-level role."
+        #         })
 
-            # Plant must belong to company
+        #     # Plant must belong to company
 
-            if plant.company_id != company.id:
+        #     if plant.company_id != company.id:
 
-                raise serializers.ValidationError({
-                    "plant":
-                    "Selected plant does not belong to selected company."
-                })
+        #         raise serializers.ValidationError({
+        #             "plant":
+        #             "Selected plant does not belong to selected company."
+        #         })
 
-            # Department must belong to plant
+        #     # Department must belong to plant
 
-            if department.plant_id != plant.id:
+        #     if department.plant_id != plant.id:
 
-                raise serializers.ValidationError({
-                    "department":
-                    "Selected department does not belong to selected plant."
-                })
+        #         raise serializers.ValidationError({
+        #             "department":
+        #             "Selected department does not belong to selected plant."
+        #         })
 
         else:
 

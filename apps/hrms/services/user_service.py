@@ -155,6 +155,10 @@ from django.db.models import Q
 from apps.hrms.models.employee import Employee
 from apps.accounts.models.user_role import UserRole
 
+from apps.accounts.services.password_encryption_service import (
+    PasswordEncryptionService
+)
+
 User = get_user_model()
 
 
@@ -235,8 +239,12 @@ class UserService:
     def create_user(validated_data):
 
         roles = validated_data.pop("roles")
-        password = validated_data.pop("password")
-
+        password = validated_data.pop("password", None)
+        encrypted_password = (
+        PasswordEncryptionService.encrypt(password)
+        if password
+        else None
+    )
         company_id = validated_data["company"]
 
         plant_id = validated_data.get("plant")
@@ -256,13 +264,14 @@ class UserService:
         employee = Employee.objects.create(
             employee_code=validated_data["employee_code"],
 
+            username=validated_data["username"],
+
             first_name=validated_data["first_name"],
 
             last_name=validated_data.get(
-                "last_name",
-                ""
-            ),
-
+            "last_name",
+            ""
+        ),
             company_id=company_id,
 
             plant_id=plant_id,
@@ -309,6 +318,7 @@ class UserService:
             department=employee.department,
 
             is_active=True,
+            encrypted_password=encrypted_password,
         )
 
         # -----------------------------------------
@@ -914,6 +924,14 @@ class UserService:
             "email",
         )
 
+
+
+    
+
+       # =========================================================
+    # GET USER BY ID
+    # =========================================================
+
     @staticmethod
     def get_user_by_id(logged_in_user, user_id):
 
@@ -952,22 +970,24 @@ class UserService:
             return user
 
         # ---------------------------------------------------------
-        # HR
+        # HR / PLANT HR
         # ---------------------------------------------------------
 
         if UserService.is_hr(logged_in_user):
 
+            # HR must belong to a company
             if not logged_in_user.company_id:
                 return None
 
+            # HR must belong to a plant
             if not logged_in_user.plant_id:
                 return None
 
-            # Same company
+            # Target user must be in same company
             if user.company_id != logged_in_user.company_id:
                 return None
 
-            # Same plant
+            # Target user must be in same plant
             if user.plant_id != logged_in_user.plant_id:
                 return None
 
@@ -978,3 +998,189 @@ class UserService:
         # ---------------------------------------------------------
 
         return None
+
+
+    # =========================================================
+    # UPDATE USER
+    # =========================================================
+
+    @staticmethod
+    @transaction.atomic
+    def update_user(user, validated_data):
+
+        # ---------------------------------------------------------
+        # GET ROLES
+        # ---------------------------------------------------------
+
+        roles = validated_data.pop(
+            "roles",
+            None
+        )
+
+        # ---------------------------------------------------------
+        # GET COMPANY / PLANT / DEPARTMENT
+        # ---------------------------------------------------------
+        # These values are UUID/IDs coming from serializer.
+        # Keep existing values if they are not provided.
+
+        company = validated_data.pop(
+            "company",
+            None
+        )
+
+        plant = validated_data.pop(
+            "plant",
+            None
+        )
+
+        department = validated_data.pop(
+            "department",
+            None
+        )
+
+        employee = user.employee
+
+        # ---------------------------------------------------------
+        # UPDATE USER BASIC FIELDS
+        # ---------------------------------------------------------
+
+        user_fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "is_active",
+        ]
+
+        for field in user_fields:
+
+            if field in validated_data:
+
+                setattr(
+                    user,
+                    field,
+                    validated_data[field]
+                )
+
+        # ---------------------------------------------------------
+        # UPDATE COMPANY / PLANT / DEPARTMENT
+        # ---------------------------------------------------------
+
+        if company is not None:
+            user.company_id = company
+
+        if plant is not None:
+            user.plant_id = plant
+
+        if department is not None:
+            user.department_id = department
+
+        user.save()
+
+        # ---------------------------------------------------------
+        # UPDATE EMPLOYEE
+        # ---------------------------------------------------------
+
+        if employee:
+
+            employee_fields = [
+                "employee_code",
+                "phone",
+                "employment_type",
+                "joining_date",
+                "status",
+            ]
+
+            for field in employee_fields:
+
+                if field in validated_data:
+
+                    setattr(
+                        employee,
+                        field,
+                        validated_data[field]
+                    )
+
+            # Keep employee information synchronized
+            # with the User record.
+
+            employee.first_name = user.first_name
+            employee.last_name = user.last_name
+            employee.email = user.email
+
+            # Update company / plant / department only
+            # when they were supplied in the request.
+
+            if company is not None:
+                employee.company_id = company
+
+            if plant is not None:
+                employee.plant_id = plant
+
+            if department is not None:
+                employee.department_id = department
+
+            employee.save()
+
+        # ---------------------------------------------------------
+        # UPDATE ROLES
+        # ---------------------------------------------------------
+
+        if roles is not None:
+
+            # Remove existing roles
+            UserRole.objects.filter(
+                user=user
+            ).delete()
+
+            # Add new roles
+            user_roles = [
+                UserRole(
+                    user=user,
+                    role=role
+                )
+                for role in roles
+            ]
+
+            UserRole.objects.bulk_create(
+                user_roles
+            )
+
+        return user
+
+
+    # =========================================================
+    # DELETE USER
+    # =========================================================
+
+    @staticmethod
+    @transaction.atomic
+    def delete_user(user):
+
+        # ---------------------------------------------------------
+        # SOFT DELETE USER
+        # ---------------------------------------------------------
+
+        user.is_active = False
+
+        user.save(
+            update_fields=[
+                "is_active"
+            ]
+        )
+
+        # ---------------------------------------------------------
+        # MARK EMPLOYEE INACTIVE
+        # ---------------------------------------------------------
+
+        if user.employee:
+
+            user.employee.status = "inactive"
+
+            user.employee.save(
+                update_fields=[
+                    "status",
+                    "updated_at"
+                ]
+            )
+
+        return user

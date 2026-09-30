@@ -221,7 +221,11 @@ class Employee(models.Model):
         max_length=100,
         blank=True
     )
-
+    username = models.CharField(
+    max_length=100,
+    blank=True,
+    null=True
+)
     email = models.EmailField(
         blank=True,
         null=True

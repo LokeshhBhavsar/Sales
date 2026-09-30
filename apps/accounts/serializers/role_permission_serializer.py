@@ -212,54 +212,82 @@ class RolePermissionAssignSerializer(
         # Plant role validation
         # ---------------------------------------------
 
-        if role.scope == "plant":
+        # if role.scope == "plant":
 
-            if permission.scope== "plant":
+        #     if permission.scope== "plant":
 
-                if role.plant_id != permission.plant_id:
+        #         if role.plant_id != permission.plant_id:
 
-                    raise serializers.ValidationError({
-                        "permission":
-                            "Permission does not belong to role plant."
-                    })
+        #             raise serializers.ValidationError({
+        #                 "permission":
+        #                     "Permission does not belong to role plant."
+        #             })
 
-            elif permission.scope == "department":
+        #     elif permission.scope == "department":
 
-                if role.plant_id != permission.plant_id:
+        #         if role.plant_id != permission.plant_id:
 
-                    raise serializers.ValidationError({
-                        "permission":
-                            "Permission does not belong to role plant."
-                    })
+        #             raise serializers.ValidationError({
+        #                 "permission":
+        #                     "Permission does not belong to role plant."
+        #             })
 
+        # # ---------------------------------------------
+        # # Department role validation
+        # # ---------------------------------------------
+
+        # if role.scope == "department":
+
+        #     if permission.scope == "plant":
+
+        #         if role.plant_id != permission.plant_id:
+
+        #             raise serializers.ValidationError({
+        #                 "permission":
+        #                     "Permission does not belong to role plant."
+        #             })
+
+        #     if permission.scope == "department":
+
+        #         if (
+        #             role.plant_id != permission.plant_id
+        #             or
+        #             role.department_id != permission.department_id
+        #         ):
+
+        #             raise serializers.ValidationError({
+        #                 "permission":
+        #                     "Permission does not belong to role department."
+        #             })
         # ---------------------------------------------
-        # Department role validation
-        # ---------------------------------------------
+# ROLE + PERMISSION SCOPE VALIDATION
+# ---------------------------------------------
 
-        if role.scope == "department":
+# Only company permissions are allowed to be
+# assigned to roles.
 
-            if permission.scope == "plant":
+        if permission.scope != "company":
 
-                if role.plant_id != permission.plant_id:
+            raise serializers.ValidationError({
+                "permission": (
+                    "Only company-level permissions "
+                    "can be assigned to roles."
+                )
+            })
 
-                    raise serializers.ValidationError({
-                        "permission":
-                            "Permission does not belong to role plant."
-                    })
 
-            if permission.scope == "department":
+        # Only company and plant roles are supported.
 
-                if (
-                    role.plant_id != permission.plant_id
-                    or
-                    role.department_id != permission.department_id
-                ):
+        if role.scope not in ["company", "plant"]:
 
-                    raise serializers.ValidationError({
-                        "permission":
-                            "Permission does not belong to role department."
-                    })
-
+            raise serializers.ValidationError({
+                "role_id": (
+                    f"Role '{role.name}' uses unsupported "
+                    f"scope '{role.scope}'. "
+                    "Only company and plant roles are "
+                    "allowed."
+                )
+            })
         # ---------------------------------------------
         # Duplicate
         # ---------------------------------------------
@@ -422,66 +450,95 @@ class BulkRolePermissionAssignSerializer(serializers.Serializer):
                     )
                 })
 
+            # # -------------------------------------------------
+            # # PLANT ROLE
+            # # -------------------------------------------------
+
+            # if role.scope == "plant":
+
+            #     if permission.scope == "plant":
+
+            #         if role.plant_id != permission.plant_id:
+
+            #             raise serializers.ValidationError({
+            #                 "permission": (
+            #                     f"Permission {permission.code} "
+            #                     "does not belong to role plant."
+            #                 )
+            #             })
+
+            #     elif permission.scope == "department":
+
+            #         if role.plant_id != permission.plant_id:
+
+            #             raise serializers.ValidationError({
+            #                 "permission": (
+            #                     f"Permission {permission.code} "
+            #                     "does not belong to role plant."
+            #                 )
+            #             })
+
+            # # -------------------------------------------------
+            # # DEPARTMENT ROLE
+            # # -------------------------------------------------
+
+            # if role.scope == "department":
+
+            #     if permission.scope == "plant":
+
+            #         if role.plant_id != permission.plant_id:
+
+            #             raise serializers.ValidationError({
+            #                 "permission": (
+            #                     f"Permission {permission.code} "
+            #                     "does not belong to role plant."
+            #                 )
+            #             })
+
+            #     elif permission.scope == "department":
+
+            #         if (
+            #             role.plant_id != permission.plant_id
+            #             or
+            #             role.department_id != permission.department_id
+            #         ):
+
+            #             raise serializers.ValidationError({
+            #                 "permission": (
+            #                     f"Permission {permission.code} "
+            #                     "does not belong to role department."
+            #                 )
+            #             })
             # -------------------------------------------------
-            # PLANT ROLE
-            # -------------------------------------------------
+# PERMISSION SCOPE
+# -------------------------------------------------
 
-            if role.scope == "plant":
+            if permission.scope != "company":
 
-                if permission.scope == "plant":
+                raise serializers.ValidationError({
+                    "permission": (
+                        f"Permission {permission.code} "
+                        "is not a company-level permission. "
+                        "Only company-level permissions "
+                        "can be assigned to roles."
+                    )
+                })
 
-                    if role.plant_id != permission.plant_id:
-
-                        raise serializers.ValidationError({
-                            "permission": (
-                                f"Permission {permission.code} "
-                                "does not belong to role plant."
-                            )
-                        })
-
-                elif permission.scope == "department":
-
-                    if role.plant_id != permission.plant_id:
-
-                        raise serializers.ValidationError({
-                            "permission": (
-                                f"Permission {permission.code} "
-                                "does not belong to role plant."
-                            )
-                        })
 
             # -------------------------------------------------
-            # DEPARTMENT ROLE
+            # ROLE SCOPE
             # -------------------------------------------------
 
-            if role.scope == "department":
+            if role.scope not in ["company", "plant"]:
 
-                if permission.scope == "plant":
-
-                    if role.plant_id != permission.plant_id:
-
-                        raise serializers.ValidationError({
-                            "permission": (
-                                f"Permission {permission.code} "
-                                "does not belong to role plant."
-                            )
-                        })
-
-                elif permission.scope == "department":
-
-                    if (
-                        role.plant_id != permission.plant_id
-                        or
-                        role.department_id != permission.department_id
-                    ):
-
-                        raise serializers.ValidationError({
-                            "permission": (
-                                f"Permission {permission.code} "
-                                "does not belong to role department."
-                            )
-                        })
-
+                raise serializers.ValidationError({
+                    "role_id": (
+                        f"Role '{role.name}' uses unsupported "
+                        f"scope '{role.scope}'. "
+                        "Only company and plant roles "
+                        "are allowed."
+                    )
+                })
         # =====================================================
         # STORE OBJECTS
         # =====================================================
