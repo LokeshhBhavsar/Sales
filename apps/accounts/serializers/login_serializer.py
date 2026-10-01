@@ -43,18 +43,17 @@ from rest_framework import serializers
 from apps.accounts.models import User
 
 
-class LoginSerializer(serializers.Serializer):
-    """
-    Serializer for User Login
-    """
 
-    email = serializers.EmailField(
+
+class LoginSerializer(serializers.Serializer):
+
+    login = serializers.CharField(
         required=True,
         max_length=255,
+        trim_whitespace=True,
         error_messages={
-            "required": "Email is required.",
-            "invalid": "Invalid email address.",
-            "blank": "Email cannot be blank.",
+            "required": "Email or username is required.",
+            "blank": "Email or username cannot be blank.",
         },
     )
 
@@ -62,7 +61,7 @@ class LoginSerializer(serializers.Serializer):
         required=True,
         max_length=128,
         write_only=True,
-        trim_whitespace=True,
+        trim_whitespace=False,
         error_messages={
             "required": "Password is required.",
             "blank": "Password cannot be blank.",
@@ -72,17 +71,18 @@ class LoginSerializer(serializers.Serializer):
         },
     )
 
-    def validate_email(self, value):
+    def validate_login(self, value):
         """
-        Normalize email.
+        Normalize login identifier.
+        Email or username is handled case-insensitively.
         """
-        return value.strip().lower()
+        return value.strip()
 
     def validate_password(self, value):
         """
-        Normalize password.
+        Do not modify password.
         """
-        return value.strip()
+        return value
 
 
 
@@ -108,7 +108,11 @@ class LoginUserSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True
     )
-
+    username = serializers.CharField(
+        source="employee.username",
+        read_only=True,
+        allow_null=True,
+    )
     plant_id = serializers.UUIDField(
         source="plant.id",
         read_only=True,
@@ -145,6 +149,7 @@ class LoginUserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "email",
+            "username",
             "first_name",
             "last_name",
 

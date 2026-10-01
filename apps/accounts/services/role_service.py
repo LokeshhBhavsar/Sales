@@ -87,9 +87,12 @@ class RoleService:
         )
 
     @staticmethod
-    def get_roles():
+    def get_roles(
+        company_id=None,
+        plant_id=None
+    ):
 
-        return (
+        queryset = (
             Role.objects
             .select_related(
                 "company",
@@ -99,10 +102,31 @@ class RoleService:
             .filter(
                 is_active=True
             )
-            .order_by(
-                "scope",
-                "name"
+        )
+
+        # -----------------------------------------------------
+        # COMPANY FILTER
+        # -----------------------------------------------------
+
+        if company_id:
+
+            queryset = queryset.filter(
+                company_id=company_id
             )
+
+        # -----------------------------------------------------
+        # PLANT FILTER
+        # -----------------------------------------------------
+
+        if plant_id:
+
+            queryset = queryset.filter(
+                plant_id=plant_id
+            )
+
+        return queryset.order_by(
+            "scope",
+            "name"
         )
 
     @staticmethod

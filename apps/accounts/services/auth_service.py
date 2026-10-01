@@ -331,7 +331,7 @@
 
 from datetime import datetime, timezone as dt_timezone
 
-from django.db import transaction
+from django.db import transaction, models
 from django.utils import timezone
 
 from rest_framework.exceptions import (
@@ -339,7 +339,7 @@ from rest_framework.exceptions import (
     ValidationError,
 )
 
-from apps.accounts.models import User, user
+from apps.accounts.models import User
 from apps.accounts.models.user_session import UserSession
 from apps.accounts.services.jwt_service import JWTService
 from apps.accounts.models.user_role import UserRole
@@ -363,32 +363,39 @@ class AuthService:
     # LOGIN
     # =========================================================
 
+    
     @staticmethod
     @transaction.atomic
-    def login(email, password, request=None):
+    def login(login, password, request=None):
         """
-        Authenticate user and create login session.
+        Authenticate user using either email or username
+        and create login session.
         """
 
-        email = email.strip().lower()
+        login = login.strip().lower()
 
         # -----------------------------------------------------
-        # Find User
+        # Find User By Email OR Employee Username
         # -----------------------------------------------------
 
-        try:
-            user = User.objects.select_related(
+        user = (
+            User.objects
+            .select_related(
                 "company",
                 "plant",
                 "department",
                 "employee",
-            ).get(
-                email=email
             )
+            .filter(
+                models.Q(email__iexact=login)
+                | models.Q(employee__username__iexact=login)
+            )
+            .first()
+        )
 
-        except User.DoesNotExist:
+        if not user:
             raise AuthenticationFailed(
-                "Invalid email or password."
+                "Invalid email/username or password."
             )
 
         # -----------------------------------------------------
@@ -406,8 +413,26 @@ class AuthService:
 
         if not user.check_password(password):
             raise AuthenticationFailed(
-                "Invalid email or password."
+                "Invalid email/username or password."
             )
+
+        # # -----------------------------------------------------
+        # # Check Active
+        # # -----------------------------------------------------
+
+        # if not user.is_active:
+        #     raise AuthenticationFailed(
+        #         "User account is inactive."
+        #     )
+
+        # # -----------------------------------------------------
+        # # Check Password
+        # # -----------------------------------------------------
+
+        # if not user.check_password(password):
+        #     raise AuthenticationFailed(
+        #         "Invalid email or password."
+        #     )
 
         # -----------------------------------------------------
         # Generate Access Token
@@ -434,7 +459,7 @@ class AuthService:
             refresh_token=refresh_token,
             request=request,
         )
-        # -----------------------------------------------------
+                # -----------------------------------------------------
         # Get User Roles & Permissions
         # -----------------------------------------------------
 
@@ -447,7 +472,19 @@ class AuthService:
         roles_data = []
 
         for user_role in user_roles:
+
             role = user_role.role
+
+            # -------------------------------------------------
+            # Skip invalid role assignment
+            # -------------------------------------------------
+
+            if not role:
+                continue
+
+            # -------------------------------------------------
+            # Get Role Permissions
+            # -------------------------------------------------
 
             role_permissions = RolePermission.objects.filter(
                 role=role
@@ -458,15 +495,33 @@ class AuthService:
             permissions = []
 
             for role_permission in role_permissions:
-                permission_code = role_permission.permission.code
+
+                # ---------------------------------------------
+                # Skip invalid permission
+                # ---------------------------------------------
+
+                if not role_permission.permission:
+                    continue
+
+                permission_code = (
+                    role_permission.permission.code
+                )
 
                 if permission_code not in permissions:
                     permissions.append(permission_code)
 
+            # -------------------------------------------------
+            # Add Role
+            # -------------------------------------------------
+
             roles_data.append({
                 "roleKey": role.code,
                 "name": role.name,
-                "scope": role.scope.strip().lower(),
+                "scope": (
+                    role.scope.strip().lower()
+                    if role.scope
+                    else None
+                ),
                 "permissions": permissions,
             })
 
@@ -572,11 +627,18 @@ class AuthService:
         # Verify Refresh Token
         # -----------------------------------------------------
 
-        payload = JWTService.verify_refresh_token(
-            refresh_token
-        )
-
-        # -----------------------------------------------------
+        # payload = JWTService.verify_refresh_token(
+        #     refresh_token
+        # )
+        try:
+            payload = JWTService.verify_refresh_token(
+                refresh_token
+            )
+        except AuthenticationFailed:
+            raise AuthenticationFailed(
+                "Login failed while creating session."
+            )
+                # -----------------------------------------------------
         # Get Refresh Token Expiration
         # -----------------------------------------------------
 

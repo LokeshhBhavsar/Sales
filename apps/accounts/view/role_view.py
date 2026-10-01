@@ -96,9 +96,36 @@ class RoleListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    # def get(self, request):
+
+    #     roles = RoleService.get_roles()
+
+    #     serializer = RoleListSerializer(
+    #         roles,
+    #         many=True
+    #     )
+
+    #     return Response(
+    #         {
+    #             "message": "Roles fetched successfully.",
+    #             "data": serializer.data,
+    #         },
+    #         status=status.HTTP_200_OK,
+    #     )
     def get(self, request):
 
-        roles = RoleService.get_roles()
+        company_id = request.query_params.get(
+            "company_id"
+        )
+
+        plant_id = request.query_params.get(
+            "plant_id"
+        )
+
+        roles = RoleService.get_roles(
+            company_id=company_id,
+            plant_id=plant_id
+        )
 
         serializer = RoleListSerializer(
             roles,
@@ -112,7 +139,6 @@ class RoleListView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
 
 class RoleDetailView(APIView):
 

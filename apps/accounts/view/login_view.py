@@ -86,7 +86,7 @@ class LoginView(APIView):
         # -------------------------------------------------
 
         result = AuthService.login(
-            email=serializer.validated_data["email"],
+            login=serializer.validated_data["login"],
             password=serializer.validated_data["password"],
             request=request,
         )

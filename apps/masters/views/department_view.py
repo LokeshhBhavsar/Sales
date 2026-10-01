@@ -168,11 +168,11 @@ class DepartmentView(APIView):
     def get(self, request):
 
         company_id = request.query_params.get(
-            "company"
+            "company_id"
         )
 
         plant_id = request.query_params.get(
-            "plant"
+            "plant_id"
         )
 
         departments = (

@@ -24,18 +24,12 @@ class JWTService:
             "type": "access",
             "exp": now + settings.JWT_ACCESS_TOKEN_LIFETIME,
         }
-        print("=" * 80)
-        print("LOGIN SECRET:", settings.JWT_SECRET_KEY)
-        print("LOGIN ALGORITHM:", settings.JWT_ALGORITHM)
-
         token = jwt.encode(
-        payload,
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM,
+            payload,
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM,
         )
 
-        print("GENERATED TOKEN:", token)
-        print("=" * 80)
         return token
     
     @staticmethod
@@ -57,8 +51,6 @@ class JWTService:
     @staticmethod
     def decode_token(token):
         try:
-            print("VERIFY SECRET:", settings.JWT_SECRET_KEY)
-            print("VERIFY ALGORITHM:", settings.JWT_ALGORITHM)
             return jwt.decode(
                 token,
                 settings.JWT_SECRET_KEY,

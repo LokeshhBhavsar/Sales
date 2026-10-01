@@ -222,10 +222,11 @@ class Employee(models.Model):
         blank=True
     )
     username = models.CharField(
-    max_length=100,
-    blank=True,
-    null=True
-)
+        max_length=100,
+        unique=True,
+        blank=True,
+        null=True
+    )
     email = models.EmailField(
         blank=True,
         null=True

@@ -167,7 +167,7 @@ class PlantView(APIView):
     def get(self, request):
 
         company_id = request.query_params.get(
-            "company"
+            "company_id"
         )
 
         plants = PlantService.get_all_plants(
