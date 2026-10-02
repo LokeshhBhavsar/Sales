@@ -84,7 +84,18 @@ class CreateUserSerializer(serializers.Serializer):
         allow_blank=True,
         allow_null=True
     )
+        # ---------------------------------------------------------
+    # USER SCOPE
+    # ---------------------------------------------------------
 
+    scope = serializers.ChoiceField(
+        choices=[
+            ("company", "Company"),
+            ("plant", "Plant"),
+            ("department", "Department"),
+        ],
+        required=True
+    )
     employment_type = serializers.CharField(
         max_length=50
     )
@@ -665,6 +676,8 @@ class CreateUserSerializer(serializers.Serializer):
 
             department=employee.department,
 
+            scope=validated_data["scope"],
+
             is_active=True,
         )
 
@@ -718,7 +731,9 @@ class UserSerializer(serializers.ModelSerializer):
         source="department.id",
         read_only=True
     )
-
+    scope = serializers.CharField(
+        read_only=True
+    )
     roles = serializers.SerializerMethodField()
 
     class Meta:
@@ -737,7 +752,7 @@ class UserSerializer(serializers.ModelSerializer):
             "company_id",
             "plant_id",
             "department_id",
-
+            "scope",
             "is_active",
 
             "roles",
@@ -948,7 +963,14 @@ class UserUpdateSerializer(serializers.Serializer):
         required=False,
         allow_null=True
     )
-
+    scope = serializers.ChoiceField(
+        choices=[
+            ("company", "Company"),
+            ("plant", "Plant"),
+            ("department", "Department"),
+        ],
+        required=False
+    )
     # ---------------------------------------------------------
     # ROLES
     # ---------------------------------------------------------
@@ -1226,7 +1248,9 @@ class UserListSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
-
+    scope = serializers.CharField(
+        read_only=True
+    )
     # =====================================================
     # PLANT
     # =====================================================
@@ -1336,7 +1360,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
             "department_id",
             "department_name",
-
+            "scope",
             # ---------------------------------------------
             # ROLES
             # ---------------------------------------------

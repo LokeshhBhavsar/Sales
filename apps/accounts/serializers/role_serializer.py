@@ -113,24 +113,305 @@ from apps.masters.models.department import Department
 
 
 
+# class RoleCreateSerializer(serializers.ModelSerializer):
+
+#     class Meta:
+#         model = Role
+
+#         fields = [
+#             "company",
+#             "plant",
+#             # "department",
+#             "scope",
+#             "name",
+#             "code",
+#             "description",
+#         ]
+
+#         # IMPORTANT
+#         # Disable DRF automatic UniqueTogetherValidator.
+#         # We will handle uniqueness ourselves.
+#         validators = []
+
+#     # =========================================================
+#     # VALIDATE
+#     # =========================================================
+
+#     def validate(self, attrs):
+
+#         company = attrs.get("company")
+#         plant = attrs.get("plant")
+#         # department = attrs.get("department")
+#         scope = attrs.get("scope")
+#         # Department scope is disabled for Role creation.
+#         department = None
+#         # -----------------------------------------------------
+#         # COMPANY
+#         # -----------------------------------------------------
+
+#         if not company:
+
+#             raise serializers.ValidationError({
+#                 "company": "Company is required."
+#             })
+
+#         # -----------------------------------------------------
+#         # LEVEL REQUIRED
+#         # -----------------------------------------------------
+
+#         if not scope:
+
+#             raise serializers.ValidationError({
+#                 "scope": "Role scope is required."
+#             })
+
+#         # =====================================================
+#         # COMPANY LEVEL
+#         # =====================================================
+
+#         if scope == "company":
+
+#             if plant:
+
+#                 raise serializers.ValidationError({
+#                     "plant":
+#                     "Company-level role cannot have plant."
+#                 })
+
+#             if department:
+
+#                 raise serializers.ValidationError({
+#                     "department":
+#                     "Company-level role cannot have department."
+#                 })
+
+#         # =====================================================
+#         # PLANT LEVEL
+#         # =====================================================
+
+#         elif scope == "plant":
+
+#             if not plant:
+
+#                 raise serializers.ValidationError({
+#                     "plant":
+#                     "Plant is required for plant-level role."
+#                 })
+
+#             # Plant must belong to company
+
+#             if plant.company_id != company.id:
+
+#                 raise serializers.ValidationError({
+#                     "plant":
+#                     "Selected plant does not belong to selected company."
+#                 })
+
+#             # Plant role cannot have department
+
+#             if department:
+
+#                 raise serializers.ValidationError({
+#                     "department":
+#                     "Plant-level role cannot have department."
+#                 })
+
+#         # =====================================================
+#         # DEPARTMENT LEVEL
+#         # =====================================================
+
+#         # elif scope == "department":
+
+#         #     if not plant:
+
+#         #         raise serializers.ValidationError({
+#         #             "plant":
+#         #             "Plant is required for department-level role."
+#         #         })
+
+#         #     if not department:
+
+#         #         raise serializers.ValidationError({
+#         #             "department":
+#         #             "Department is required for department-level role."
+#         #         })
+
+#         #     # Plant must belong to company
+
+#         #     if plant.company_id != company.id:
+
+#         #         raise serializers.ValidationError({
+#         #             "plant":
+#         #             "Selected plant does not belong to selected company."
+#         #         })
+
+#         #     # Department must belong to plant
+
+#         #     if department.plant_id != plant.id:
+
+#         #         raise serializers.ValidationError({
+#         #             "department":
+#         #             "Selected department does not belong to selected plant."
+#         #         })
+
+#         else:
+
+#             raise serializers.ValidationError({
+#                 "scope":
+#                 "Invalid role scope."
+#             })
+
+#         # =====================================================
+#         # CODE UNIQUENESS
+#         # =====================================================
+
+#         code = attrs.get("code")
+
+#         if code:
+
+#             code = code.strip().upper()
+
+#             existing_role = Role.objects.filter(
+#                 company=company,
+#                 plant=plant,
+#                 department=department,
+#                 code__iexact=code,
+#             ).first()
+
+#             if existing_role:
+
+#                 raise serializers.ValidationError({
+#                     "code":
+#                     "This role code already exists for the selected scope."
+#                 })
+
+#         return attrs
+
+#     # =========================================================
+#     # NAME
+#     # =========================================================
+
+#     def validate_name(self, value):
+
+#         value = value.strip()
+
+#         if not value:
+
+#             raise serializers.ValidationError(
+#                 "Role name is required."
+#             )
+
+#         return value
+
+#     # =========================================================
+#     # CODE
+#     # =========================================================
+
+#     def validate_code(self, value):
+
+#         value = value.strip().upper()
+
+#         if not value:
+
+#             raise serializers.ValidationError(
+#                 "Role code is required."
+#             )
+
+#         return value
+
+
+    
+# # class RoleListSerializer(serializers.ModelSerializer):
+# #     """
+# #     Serializer for listing roles.
+# #     """
+
+# #     company_id = serializers.UUIDField(
+# #         source="company.id",
+# #         read_only=True
+# #     )
+
+# #     company_name = serializers.CharField(
+# #         source="company.name",
+# #         read_only=True
+# #     )
+
+# #     plant_id = serializers.UUIDField(
+# #         source="plant.id",
+# #         read_only=True
+# #     )
+
+# #     plant_name = serializers.CharField(
+# #         source="plant.name",
+# #         read_only=True
+# #     )
+
+# #     department_id = serializers.UUIDField(
+# #         source="department.id",
+# #         read_only=True
+# #     )
+
+# #     department_name = serializers.CharField(
+# #         source="department.name",
+# #         read_only=True
+# #     )
+
+# #     class Meta:
+# #         model = Role
+# #         fields = [
+# #             "id",
+
+# #             "company_id",
+# #             "company_name",
+
+# #             "plant_id",
+# #             "plant_name",
+
+# #             "department_id",
+# #             "department_name",
+
+# #             "name",
+# #             "code",
+# #             "description",
+
+# #             "is_active",
+
+# #             "created_at",
+# #             "updated_at",
+# #         ]
 class RoleCreateSerializer(serializers.ModelSerializer):
 
+    # ---------------------------------------------------------
+    # DEPARTMENT
+    # ---------------------------------------------------------
+    # We accept this field only so that we can explicitly
+    # reject it during validation.
+    #
+    # It must NEVER be saved for company/plant roles.
+    # ---------------------------------------------------------
+
+    department = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        write_only=True
+    )
+
     class Meta:
+
         model = Role
 
         fields = [
             "company",
             "plant",
-            # "department",
+            "department",
             "scope",
             "name",
             "code",
             "description",
         ]
 
-        # IMPORTANT
-        # Disable DRF automatic UniqueTogetherValidator.
-        # We will handle uniqueness ourselves.
+        # Disable DRF automatic unique validation.
+        # We handle it manually below.
         validators = []
 
     # =========================================================
@@ -139,12 +420,22 @@ class RoleCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
 
-        company = attrs.get("company")
-        plant = attrs.get("plant")
-        # department = attrs.get("department")
-        scope = attrs.get("scope")
-        # Department scope is disabled for Role creation.
-        department = None
+        company = attrs.get(
+            "company"
+        )
+
+        plant = attrs.get(
+            "plant"
+        )
+
+        department = attrs.get(
+            "department"
+        )
+
+        scope = attrs.get(
+            "scope"
+        )
+
         # -----------------------------------------------------
         # COMPANY
         # -----------------------------------------------------
@@ -152,18 +443,25 @@ class RoleCreateSerializer(serializers.ModelSerializer):
         if not company:
 
             raise serializers.ValidationError({
-                "company": "Company is required."
+                "company":
+                    "Company is required."
             })
 
         # -----------------------------------------------------
-        # LEVEL REQUIRED
+        # SCOPE
         # -----------------------------------------------------
 
         if not scope:
 
             raise serializers.ValidationError({
-                "scope": "Role scope is required."
+                "scope":
+                    "Role scope is required."
             })
+
+        # Normalize scope
+        scope = scope.strip().lower()
+
+        attrs["scope"] = scope
 
         # =====================================================
         # COMPANY LEVEL
@@ -171,18 +469,20 @@ class RoleCreateSerializer(serializers.ModelSerializer):
 
         if scope == "company":
 
+            # Company-level role cannot have plant
             if plant:
 
                 raise serializers.ValidationError({
                     "plant":
-                    "Company-level role cannot have plant."
+                        "Company-level role cannot have plant."
                 })
 
+            # Company-level role cannot have department
             if department:
 
                 raise serializers.ValidationError({
                     "department":
-                    "Company-level role cannot have department."
+                        "Department cannot be assigned to a company-level role."
                 })
 
         # =====================================================
@@ -191,81 +491,60 @@ class RoleCreateSerializer(serializers.ModelSerializer):
 
         elif scope == "plant":
 
+            # Plant is mandatory
             if not plant:
 
                 raise serializers.ValidationError({
                     "plant":
-                    "Plant is required for plant-level role."
+                        "Plant is required for plant-level role."
                 })
 
-            # Plant must belong to company
+            # -------------------------------------------------
+            # PLANT MUST BELONG TO COMPANY
+            # -------------------------------------------------
 
             if plant.company_id != company.id:
 
                 raise serializers.ValidationError({
                     "plant":
-                    "Selected plant does not belong to selected company."
+                        "Selected plant does not belong to selected company."
                 })
 
-            # Plant role cannot have department
+            # -------------------------------------------------
+            # DEPARTMENT NOT ALLOWED
+            # -------------------------------------------------
 
             if department:
 
                 raise serializers.ValidationError({
                     "department":
-                    "Plant-level role cannot have department."
+                        "Department cannot be assigned to a plant-level role."
                 })
 
         # =====================================================
-        # DEPARTMENT LEVEL
+        # INVALID SCOPE
         # =====================================================
-
-        # elif scope == "department":
-
-        #     if not plant:
-
-        #         raise serializers.ValidationError({
-        #             "plant":
-        #             "Plant is required for department-level role."
-        #         })
-
-        #     if not department:
-
-        #         raise serializers.ValidationError({
-        #             "department":
-        #             "Department is required for department-level role."
-        #         })
-
-        #     # Plant must belong to company
-
-        #     if plant.company_id != company.id:
-
-        #         raise serializers.ValidationError({
-        #             "plant":
-        #             "Selected plant does not belong to selected company."
-        #         })
-
-        #     # Department must belong to plant
-
-        #     if department.plant_id != plant.id:
-
-        #         raise serializers.ValidationError({
-        #             "department":
-        #             "Selected department does not belong to selected plant."
-        #         })
 
         else:
 
             raise serializers.ValidationError({
                 "scope":
-                "Invalid role scope."
+                    "Invalid role scope."
             })
+
+        # -----------------------------------------------------
+        # FORCE DEPARTMENT TO NONE
+        # -----------------------------------------------------
+
+        attrs["department"] = None
 
         # =====================================================
         # CODE UNIQUENESS
         # =====================================================
 
-        code = attrs.get("code")
+        code = attrs.get(
+            "code"
+        )
 
         if code:
 
@@ -274,7 +553,7 @@ class RoleCreateSerializer(serializers.ModelSerializer):
             existing_role = Role.objects.filter(
                 company=company,
                 plant=plant,
-                department=department,
+                department=None,
                 code__iexact=code,
             ).first()
 
@@ -282,7 +561,7 @@ class RoleCreateSerializer(serializers.ModelSerializer):
 
                 raise serializers.ValidationError({
                     "code":
-                    "This role code already exists for the selected scope."
+                        "This role code already exists for the selected scope."
                 })
 
         return attrs
@@ -318,68 +597,6 @@ class RoleCreateSerializer(serializers.ModelSerializer):
             )
 
         return value
-
-
-    
-# class RoleListSerializer(serializers.ModelSerializer):
-#     """
-#     Serializer for listing roles.
-#     """
-
-#     company_id = serializers.UUIDField(
-#         source="company.id",
-#         read_only=True
-#     )
-
-#     company_name = serializers.CharField(
-#         source="company.name",
-#         read_only=True
-#     )
-
-#     plant_id = serializers.UUIDField(
-#         source="plant.id",
-#         read_only=True
-#     )
-
-#     plant_name = serializers.CharField(
-#         source="plant.name",
-#         read_only=True
-#     )
-
-#     department_id = serializers.UUIDField(
-#         source="department.id",
-#         read_only=True
-#     )
-
-#     department_name = serializers.CharField(
-#         source="department.name",
-#         read_only=True
-#     )
-
-#     class Meta:
-#         model = Role
-#         fields = [
-#             "id",
-
-#             "company_id",
-#             "company_name",
-
-#             "plant_id",
-#             "plant_name",
-
-#             "department_id",
-#             "department_name",
-
-#             "name",
-#             "code",
-#             "description",
-
-#             "is_active",
-
-#             "created_at",
-#             "updated_at",
-#         ]
-
 
 class RoleListSerializer(
     serializers.ModelSerializer

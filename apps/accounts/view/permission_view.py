@@ -106,6 +106,7 @@
 
 
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -198,12 +199,80 @@ class PermissionListAPIView(APIView):
 
     def get(self, request):
 
-        permissions = (
-            PermissionService
-            .get_permissions_for_user(
-                request.user
-            )
+        # -----------------------------------------------------
+        # GET FILTERS
+        # -----------------------------------------------------
+
+        company_id = request.query_params.get(
+            "company_id"
         )
+
+        plant_id = request.query_params.get(
+            "plant_id"
+        )
+
+        # -----------------------------------------------------
+        # PLANT DEPENDS ON COMPANY
+        # -----------------------------------------------------
+
+        if plant_id and not company_id:
+
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Company ID is required when filtering by plant.",
+                    "errors": {
+                        "company_id":
+                            "company_id is required when plant_id is provided."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # -----------------------------------------------------
+        # GET PERMISSIONS
+        # -----------------------------------------------------
+
+        try:
+
+            permissions = (
+                PermissionService
+                .get_permissions_for_user(
+                    request.user,
+                    company_id=company_id,
+                    plant_id=plant_id,
+                )
+            )
+        except ValidationError as exc:
+
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Invalid permission filter.",
+                    "errors":
+                        exc.detail,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as exc:
+
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Failed to fetch permissions.",
+                    "errors": {
+                        "detail": str(exc)
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # -----------------------------------------------------
+        # SERIALIZE
+        # -----------------------------------------------------
 
         serializer = PermissionSerializer(
             permissions,

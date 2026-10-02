@@ -141,8 +141,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="users"
     )
     encrypted_password = models.TextField(
-    null=True,
-    blank=True
+        null=True,
+        blank=True
 )
     department = models.ForeignKey(
         Department,
@@ -151,7 +151,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         related_name="users"
     )
+    SCOPE_CHOICES = (
+        ("company", "Company"),
+        ("plant", "Plant"),
+        ("department", "Department"),
+    )
 
+    scope = models.CharField(
+        max_length=20,
+        choices=SCOPE_CHOICES,
+        default="company",
+    )
     # --------------------------------------------------
     # HRMS Employee
     # --------------------------------------------------

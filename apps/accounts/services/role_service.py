@@ -81,7 +81,8 @@ class RoleService:
     @staticmethod
     @transaction.atomic
     def create_role(validated_data):
-
+        validated_data["department"] = None
+        
         return Role.objects.create(
             **validated_data
         )

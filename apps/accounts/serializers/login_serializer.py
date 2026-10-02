@@ -152,6 +152,7 @@ class LoginUserSerializer(serializers.ModelSerializer):
             "username",
             "first_name",
             "last_name",
+            "scope",
 
             "company_id",
             "company_name",

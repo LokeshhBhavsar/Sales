@@ -265,9 +265,10 @@ from django.db.models import Q
 
 from rest_framework.exceptions import ValidationError
 
-from apps.accounts.models import user
+# from apps.accounts.models import user
 from apps.accounts.models.permission import Permission
-
+from apps.masters.models.company import Company
+from apps.masters.models.plant import Plant
 
 class PermissionService:
 
@@ -556,118 +557,202 @@ class PermissionService:
     #         "code",
     #     )
     @staticmethod
-    def get_permissions_for_user(user):
+    def get_permissions_for_user(
+        user,
+        company_id=None,
+        plant_id=None,
+    ):
 
-    # -----------------------------------------------------
-    # SUPERUSER
-    # -----------------------------------------------------
+        # =====================================================
+        # PLANT FILTER DEPENDS ON COMPANY
+        # =====================================================
 
-     if user.is_superuser:
+        if plant_id and not company_id:
 
-        return (
-            Permission.objects
-            .select_related(
-                "company",
-                "plant",
-                "department",
+            raise ValidationError({
+                "company_id":
+                    "Company ID is required when plant ID is provided."
+            })
+
+        # =====================================================
+        # VALIDATE COMPANY
+        # =====================================================
+
+        company = None
+
+        if company_id:
+
+            try:
+
+                company = Company.objects.get(
+                    id=company_id
+                )
+
+            except Company.DoesNotExist:
+
+                raise ValidationError({
+                    "company_id":
+                        "Company not found."
+                })
+
+        # =====================================================
+        # VALIDATE PLANT
+        # =====================================================
+
+        plant = None
+
+        if plant_id:
+
+            try:
+
+                plant = Plant.objects.get(
+                    id=plant_id,
+                    company_id=company_id
+                )
+
+            except Plant.DoesNotExist:
+
+                raise ValidationError({
+                    "plant_id":
+                        "Plant does not belong to the selected company."
+                })
+
+        # =====================================================
+        # BASE QUERYSET
+        # =====================================================
+        #
+        # IMPORTANT:
+        # queryset is created BEFORE applying any filters.
+        # This prevents:
+        #
+        # cannot access local variable 'queryset'
+        #
+        # =====================================================
+
+        if user.is_superuser:
+
+            queryset = (
+                Permission.objects
+                .select_related(
+                    "company",
+                    "plant",
+                    "department",
+                )
+                .all()
             )
-            .all()
-            .order_by(
+
+        else:
+
+            # -------------------------------------------------
+            # USER MUST HAVE COMPANY
+            # -------------------------------------------------
+
+            if not user.company:
+
+                return Permission.objects.none()
+
+            queryset = (
+                Permission.objects
+                .select_related(
+                    "company",
+                    "plant",
+                    "department",
+                )
+                .filter(
+                    company=user.company
+                )
+            )
+
+        # =====================================================
+        # COMPANY FILTER
+        # =====================================================
+
+        if company_id:
+
+            queryset = queryset.filter(
+                company_id=company_id
+            )
+
+        # =====================================================
+        # PLANT FILTER
+        # =====================================================
+
+        if plant_id:
+
+            queryset = queryset.filter(
+                plant_id=plant_id
+            )
+
+        # =====================================================
+        # DEPARTMENT USER
+        # =====================================================
+
+        if user.department:
+
+            return queryset.filter(
+
+                Q(
+                    scope="company"
+                )
+
+                |
+
+                Q(
+                    scope="plant",
+                    plant=user.plant,
+                )
+
+                |
+
+                Q(
+                    scope="department",
+                    plant=user.plant,
+                    department=user.department,
+                )
+
+            ).order_by(
                 "module",
                 "code",
             )
-        )
 
-    # -----------------------------------------------------
-    # COMPANY REQUIRED
-    # -----------------------------------------------------
+        # =====================================================
+        # PLANT USER
+        # =====================================================
 
-     if not user.company:
+        if user.plant:
 
-        return Permission.objects.none()
+            return queryset.filter(
 
-     queryset = (
-        Permission.objects
-        .select_related(
-            "company",
-            "plant",
-            "department",
-        )
-        .filter(
-            company=user.company
-        )
-    )
+                Q(
+                    scope="company"
+                )
 
-    # -----------------------------------------------------
-    # DEPARTMENT USER
-    # -----------------------------------------------------
+                |
 
-     if user.department:
+                Q(
+                    scope="plant",
+                    plant=user.plant,
+                )
+
+                |
+
+                Q(
+                    scope="department",
+                    plant=user.plant,
+                )
+
+            ).order_by(
+                "module",
+                "code",
+            )
+
+        # =====================================================
+        # COMPANY USER
+        # =====================================================
 
         return queryset.filter(
-
-            Q(
-                scope="company"
-            )
-
-            |
-
-            Q(
-                scope="plant",
-                plant=user.plant,
-            )
-
-            |
-
-            Q(
-                scope="department",
-                plant=user.plant,
-                department=user.department,
-            )
-
+            scope="company"
         ).order_by(
             "module",
             "code",
         )
-
-    # -----------------------------------------------------
-    # PLANT USER
-    # -----------------------------------------------------
-
-     if user.plant:
-
-        return queryset.filter(
-
-            Q(
-                scope="company"
-            )
-
-            |
-
-            Q(
-                scope="plant",
-                plant=user.plant,
-            )
-
-            |
-
-            Q(
-                scope="department",
-                plant=user.plant,
-            )
-
-        ).order_by(
-            "module",
-            "code",
-        )
-
-    # -----------------------------------------------------
-    # COMPANY USER
-    # -----------------------------------------------------
-
-     return queryset.filter(
-        scope="company"
-    ).order_by(
-        "module",
-        "code",
-    )

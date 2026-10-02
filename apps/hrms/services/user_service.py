@@ -1037,7 +1037,10 @@ class UserService:
             "department",
             None
         )
-
+        scope = validated_data.pop(
+            "scope",
+            None
+        )
         employee = user.employee
 
         # ---------------------------------------------------------
@@ -1049,6 +1052,7 @@ class UserService:
             "first_name",
             "last_name",
             "is_active",
+            
         ]
 
         for field in user_fields:
@@ -1060,6 +1064,13 @@ class UserService:
                     field,
                     validated_data[field]
                 )
+                # ---------------------------------------------------------
+        # UPDATE USER SCOPE
+        # ---------------------------------------------------------
+
+        if scope is not None:
+
+            user.scope = scope
 
         # ---------------------------------------------------------
         # UPDATE COMPANY / PLANT / DEPARTMENT

@@ -69,13 +69,50 @@ class RoleCreateView(APIView):
             data=request.data
         )
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        # ---------------------------------------------------------
+        # VALIDATION
+        # ---------------------------------------------------------
 
-        role = RoleService.create_role(
-            serializer.validated_data
-        )
+        if not serializer.is_valid():
+
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Role validation failed.",
+                    "errors":
+                        serializer.errors
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ---------------------------------------------------------
+        # CREATE ROLE
+        # ---------------------------------------------------------
+
+        try:
+
+            role = RoleService.create_role(
+                serializer.validated_data
+            )
+
+        except Exception as exc:
+
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Failed to create role.",
+                    "errors": {
+                        "detail": str(exc)
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ---------------------------------------------------------
+        # SUCCESS
+        # ---------------------------------------------------------
 
         return Response(
             {
