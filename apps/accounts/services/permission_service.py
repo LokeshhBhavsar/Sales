@@ -293,13 +293,19 @@ class PermissionService:
         # -----------------------------------------------------
 
         module = validated_data["module"].strip().lower()
+        tab = validated_data.get("tab")
         action = validated_data["action"].strip().lower()
         scope = validated_data["scope"].strip().lower()
 
-        code = validated_data.get("code")
+        if tab:
+            tab = tab.strip().lower()
 
-        if code:
-            code = code.strip().lower()
+        # -----------------------------------------------------
+        # GENERATE CODE
+        # -----------------------------------------------------
+
+        if tab:
+            code = f"{module}.{tab}.{action}"
         else:
             code = f"{module}.{action}"
 
@@ -427,6 +433,7 @@ class PermissionService:
             department=department,
             scope=scope,
             module=module,
+            tab=tab,
             action=action,
             code=code,
             description=validated_data.get(

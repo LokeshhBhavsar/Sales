@@ -177,7 +177,11 @@ class Permission(models.Model):
     module = models.CharField(
         max_length=100,
     )
-
+    tab = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
     # =========================================================
     # ACTION
     # =========================================================

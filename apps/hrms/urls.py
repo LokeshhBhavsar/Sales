@@ -28,7 +28,9 @@ from apps.hrms.views.attendance import (
     AttendanceViewSet,
     AttendanceLogViewSet,
 )
-
+from apps.hrms.views.shift_view import (
+    ShiftListCreateView,
+)
 from apps.hrms.views.biometric import (
     BiometricDeviceViewSet,
     BiometricEmployeeViewSet,
@@ -108,6 +110,15 @@ urlpatterns = [
             "post": "create",
         }),
         name="attendance-list",
+    ),
+        # ------------------------------------------
+    # Shift Management
+    # ------------------------------------------
+
+    path(
+        "/shifts/",
+        ShiftListCreateView.as_view(),
+        name="shift-list-create",
     ),
     path(
         "/attendance/today-summary/",

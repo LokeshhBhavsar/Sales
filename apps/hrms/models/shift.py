@@ -1,6 +1,6 @@
-
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 from apps.masters.models.company import Company
@@ -10,15 +10,19 @@ from apps.masters.models.plant import Plant
 class Shift(models.Model):
 
     SHIFT_TYPE_CHOICES = (
-        ("fixed", "Fixed"),
-        ("flexible", "Flexible"),
+        ("basic", "Basic"),
+        ("contract", "Contract"),
     )
 
     id = models.UUIDField(
-                primary_key=True,
-                default=uuid.uuid4,
-                editable=False
-            )
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+
+    # =========================================================
+    # ORGANIZATION
+    # =========================================================
 
     company = models.ForeignKey(
         Company,
@@ -32,6 +36,10 @@ class Shift(models.Model):
         related_name="hrms_shifts"
     )
 
+    # =========================================================
+    # SHIFT INFORMATION
+    # =========================================================
+
     name = models.CharField(
         max_length=100
     )
@@ -42,8 +50,7 @@ class Shift(models.Model):
 
     shift_type = models.CharField(
         max_length=20,
-        choices=SHIFT_TYPE_CHOICES,
-        default="fixed"
+        choices=SHIFT_TYPE_CHOICES
     )
 
     start_time = models.TimeField()
@@ -53,6 +60,10 @@ class Shift(models.Model):
     grace_minutes = models.PositiveIntegerField(
         default=15
     )
+
+    # =========================================================
+    # EXISTING ATTENDANCE SUPPORT
+    # =========================================================
 
     break_minutes = models.PositiveIntegerField(
         default=60
@@ -70,8 +81,36 @@ class Shift(models.Model):
         default=False
     )
 
+    # =========================================================
+    # STATUS
+    # =========================================================
+
     is_active = models.BooleanField(
         default=True
+    )
+
+    is_deleted = models.BooleanField(
+        default=False
+    )
+
+    # =========================================================
+    # AUDIT
+    # =========================================================
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_shifts"
+    )
+
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_shifts"
     )
 
     created_at = models.DateTimeField(
@@ -82,16 +121,43 @@ class Shift(models.Model):
         auto_now=True
     )
 
+    # =========================================================
+    # META
+    # =========================================================
+
     class Meta:
+
         db_table = "hrms_shifts"
 
         constraints = [
             models.UniqueConstraint(
-                fields=["plant", "code"],
+                fields=[
+                    "plant",
+                    "code"
+                ],
                 name="unique_shift_code_per_plant"
             )
         ]
 
-    def __str__(self):
-        return f"{self.code} - {self.name}"
+        indexes = [
+            models.Index(
+                fields=[
+                    "company",
+                    "plant"
+                ]
+            ),
+            models.Index(
+                fields=[
+                    "is_active"
+                ]
+            ),
+            models.Index(
+                fields=[
+                    "is_deleted"
+                ]
+            ),
+        ]
 
+    def __str__(self):
+
+        return f"{self.code} - {self.name}"

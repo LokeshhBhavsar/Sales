@@ -160,7 +160,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     scope = models.CharField(
         max_length=20,
         choices=SCOPE_CHOICES,
-        default="company",
+        default="plant",
     )
     # --------------------------------------------------
     # HRMS Employee

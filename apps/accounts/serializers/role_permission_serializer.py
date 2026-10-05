@@ -322,7 +322,22 @@ class RolePermissionSerializer(
         source="role.code",
         read_only=True
     )
+    scope = serializers.CharField(
+        source="role.scope",
+        read_only=True
+    )
 
+    company = serializers.CharField(
+        source="role.company.name",
+        read_only=True,
+        allow_null=True
+    )
+
+    plant = serializers.CharField(
+        source="role.plant.name",
+        read_only=True,
+        allow_null=True
+    )
     permission_code = serializers.CharField(
         source="permission.code",
         read_only=True
@@ -337,7 +352,9 @@ class RolePermissionSerializer(
 
             "role_name",
             "role_code",
-
+            "scope",
+            "company",
+            "plant",
             "permission_code",
 
             "created_at",

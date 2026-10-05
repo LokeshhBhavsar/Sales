@@ -164,7 +164,11 @@ from apps.accounts.models.permission import Permission
 class PermissionCreateSerializer(
     serializers.ModelSerializer
 ):
-
+    tab = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
     class Meta:
         model = Permission
 
@@ -174,6 +178,7 @@ class PermissionCreateSerializer(
             # "department",
             "scope",
             "module",
+            "tab",
             "action",
             "code",
             "description",
@@ -193,6 +198,7 @@ class PermissionCreateSerializer(
 
         scope = attrs.get("scope")
         module = attrs.get("module")
+        tab = attrs.get("tab")
         action = attrs.get("action")
         code = attrs.get("code")
 
@@ -214,7 +220,8 @@ class PermissionCreateSerializer(
 
         if module:
             module = module.strip().lower()
-
+        if tab:
+            tab = tab.strip().lower()
         if action:
             action = action.strip().lower()
 
@@ -223,6 +230,7 @@ class PermissionCreateSerializer(
 
         attrs["scope"] = scope
         attrs["module"] = module
+        attrs["tab"] = tab
         attrs["action"] = action
 
         # =====================================================
@@ -325,12 +333,23 @@ class PermissionCreateSerializer(
         # GENERATE CODE
         # =====================================================
 
-        if code:
-            attrs["code"] = code
-        else:
-            attrs["code"] = f"{module}.{action}"
-
+        # if code:
+        #     attrs["code"] = code
+        # else:
+        #     attrs["code"] = f"{module}.{action}"
         # =====================================================
+# GENERATE CODE
+# =====================================================
+
+            if code:
+                attrs["code"] = code
+
+            elif tab:
+                attrs["code"] = f"{module}.{tab}.{action}"
+
+            else:
+                attrs["code"] = f"{module}.{action}"
+                    # =====================================================
         # DUPLICATE CHECK
         #
         # IMPORTANT:
@@ -425,6 +444,7 @@ class PermissionSerializer(
             "scope",
 
             "module",
+            "tab",
             "action",
             "code",
 
