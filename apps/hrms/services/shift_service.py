@@ -1,11 +1,22 @@
 import re
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
+from django.utils import timezone
 
 from apps.hrms.models.shift import Shift
 from apps.masters.models.plant import Plant
 
+class DuplicateShiftError(ValueError):
+
+    def __init__(
+        self,
+        message,
+        shift=None
+    ):
+        super().__init__(message)
+
+        self.shift = shift
 
 class ShiftService:
 
@@ -182,7 +193,156 @@ class ShiftService:
             raise ValueError(
                 "Plant is required."
             )
+                # -----------------------------------------------------
+        # VALIDATE AUDIT USER
+        # -----------------------------------------------------
 
+        if not user or not getattr(
+            user,
+            "is_authenticated",
+            False
+        ):
+
+            raise ValueError(
+                "Authenticated user is required to create a shift."
+            )
+
+        # -----------------------------------------------------
+        # VALIDATE ACTIVE COMPANY
+        # -----------------------------------------------------
+
+        if not company.is_active:
+
+            raise ValueError(
+                "The selected company is inactive."
+            )
+
+        # -----------------------------------------------------
+        # VALIDATE ACTIVE PLANT
+        # -----------------------------------------------------
+
+        if not plant.is_active:
+
+            raise ValueError(
+                "The selected plant is inactive."
+            )
+
+        # -----------------------------------------------------
+        # NORMALIZE VALUES
+        # -----------------------------------------------------
+
+        name = str(
+            validated_data.get(
+                "name",
+                ""
+            )
+        ).strip()
+
+        shift_type = str(
+            validated_data.get(
+                "shift_type",
+                ""
+            )
+        ).strip().lower()
+
+        start_time = validated_data.get(
+            "start_time"
+        )
+
+        end_time = validated_data.get(
+            "end_time"
+        )
+
+        # -----------------------------------------------------
+        # REQUIRED FIELD VALIDATION
+        # -----------------------------------------------------
+
+        if not name:
+
+            raise ValueError(
+                "Shift name is required."
+            )
+
+        if shift_type not in {
+            "basic",
+            "contract"
+        }:
+
+            raise ValueError(
+                "Invalid shift_type. "
+                "Allowed values are basic and contract."
+            )
+
+        if start_time is None:
+
+            raise ValueError(
+                "start_time is required."
+            )
+
+        if end_time is None:
+
+            raise ValueError(
+                "end_time is required."
+            )
+
+        validated_data["name"] = name
+        validated_data["shift_type"] = shift_type
+
+        # -----------------------------------------------------
+        # DUPLICATE CHECK 1
+        #
+        # SAME:
+        # company + plant + name + shift_type
+        # -----------------------------------------------------
+
+        existing_shift = (
+            Shift.objects
+            .filter(
+                company=company,
+                plant=plant,
+                name__iexact=name,
+                shift_type=shift_type,
+                is_deleted=False,
+            )
+            .first()
+        )
+
+        if existing_shift:
+
+            raise DuplicateShiftError(
+                "A shift with the same name and "
+                "shift type already exists for "
+                "this company and plant.",
+                shift=existing_shift
+            )
+
+        # -----------------------------------------------------
+        # DUPLICATE CHECK 2
+        #
+        # SAME:
+        # company + plant + start_time + end_time
+        # -----------------------------------------------------
+
+        existing_shift = (
+            Shift.objects
+            .filter(
+                company=company,
+                plant=plant,
+                start_time=start_time,
+                end_time=end_time,
+                is_deleted=False,
+            )
+            .first()
+        )
+
+        if existing_shift:
+
+            raise DuplicateShiftError(
+                "A shift with the same start time "
+                "and end time already exists for "
+                "this company and plant.",
+                shift=existing_shift
+            )
         # -----------------------------------------------------
         # LOCK PLANT ROW
         # -----------------------------------------------------
@@ -269,7 +429,39 @@ class ShiftService:
                     filter=Q(
                         employee_assignments__is_active=True
                     )
-                )
+                ),
+                assigned_user_count=Count(
+                    "employee_assignments__employee__user__id",
+                    filter=(
+                        Q(employee_assignments__is_active=True)
+                        & Q(employee_assignments__effective_from__lte=timezone.localdate())
+                        & (
+                            Q(employee_assignments__effective_to__isnull=True)
+                            | Q(employee_assignments__effective_to__gte=timezone.localdate())
+                        )
+                        & Q(employee_assignments__employee__status="active")
+                        & Q(employee_assignments__employee__user__isnull=False)
+                        & Q(employee_assignments__employee__user__is_active=True)
+                        & Q(employee_assignments__employee__user__is_deleted=False)
+                        & Q(employee_assignments__employee__company_id=F("company_id"))
+                        & Q(employee_assignments__employee__plant_id=F("plant_id"))
+                        & (
+                            Q(
+                                employee_assignments__employee__user__scope="company",
+                                employee_assignments__employee__user__company_id=F("company_id"),
+                            )
+                            | Q(
+                                employee_assignments__employee__user__scope__in=(
+                                    "plant",
+                                    "department",
+                                ),
+                                employee_assignments__employee__user__company_id=F("company_id"),
+                                employee_assignments__employee__user__plant_id=F("plant_id"),
+                            )
+                        )
+                    ),
+                    distinct=True,
+                ),
             )
 
             .filter(

@@ -82,6 +82,14 @@ class Attendance(models.Model):
         default=0
     )
 
+    is_late = models.BooleanField(
+        default=False
+    )
+
+    late_count = models.PositiveIntegerField(
+        default=0
+    )
+
     early_leave_minutes = models.PositiveIntegerField(
         default=0
     )

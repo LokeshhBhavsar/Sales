@@ -14,7 +14,8 @@ from apps.hrms.serializers.shift_list_serializer import (
     ShiftListSerializer
 )
 from apps.hrms.services.shift_service import (
-    ShiftService
+    ShiftService,
+    DuplicateShiftError,
 )
 from apps.masters.models.company import Company
 from apps.masters.models.plant import Plant
@@ -53,7 +54,7 @@ class ShiftListCreateView(APIView):
             shift_type = request.query_params.get(
                 "shift_type"
             )
-
+            
             # -------------------------------------------------
             # PLANT REQUIRES COMPANY
             # -------------------------------------------------
@@ -243,13 +244,52 @@ class ShiftListCreateView(APIView):
                 status=status.HTTP_200_OK
             )
 
+        except DuplicateShiftError as exc:
+
+            response_data = {
+                "success": False,
+                "message": str(exc),
+                "errors": {
+                    "detail": str(exc)
+                }
+            }
+
+            # Return the already existing shift
+            # so frontend knows which record caused
+            # the duplicate conflict.
+            if exc.shift:
+
+                response_data["existing_shift"] = (
+                    ShiftSerializer(
+                        exc.shift
+                    ).data
+                )
+
+            return Response(
+                response_data,
+                status=status.HTTP_409_CONFLICT
+            )
+
+        except ValueError as exc:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": str(exc),
+                    "errors": {
+                        "detail": str(exc)
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         except Exception as exc:
 
             return Response(
                 {
                     "success": False,
                     "message":
-                        "Failed to fetch shifts.",
+                        "Failed to create shift.",
                     "errors": {
                         "detail": str(exc)
                     }

@@ -442,8 +442,28 @@ class UserCreateView(APIView):
             raise_exception=True
         )
 
+        # user = UserService.create_user(
+        #     serializer.validated_data,
+        #     created_by=request.user,
+        #     documents=request.FILES.getlist("documents"),
+        # )
+        documents = request.FILES.getlist(
+            "documents"
+        )
+        if len(documents) > 4:
+            return Response(
+                {
+                    "success": False,
+                    "message":
+                        "Maximum 4 documents can be uploaded."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         user = UserService.create_user(
-            serializer.validated_data
+            serializer.validated_data,
+            created_by=request.user,
+            documents=documents,
         )
 
         return Response(
@@ -473,18 +493,44 @@ class UserListView(APIView):
         # =================================================
 
         company_id = request.query_params.get(
-            "company"
+            "company_id"
         )
 
         plant_id = request.query_params.get(
-            "plant"
+            "plant_id"
         )
 
         department_id = request.query_params.get(
             "department"
         )
+        scope = request.query_params.get(
+           "scope"
+        )
+        if plant_id and not company_id:
+            return Response(
+                {
+                    "success": False,
+                    "message": "company_id is required when plant_id is provided."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # =================================================
+# VALIDATE SCOPE
+# =================================================
+
+        if scope:
+            scope = scope.strip().lower()
+
+            if scope not in ["company", "plant"]:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "scope must be either 'company' or 'plant'."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+                # =================================================
         # USER FILTERS
         # =================================================
 
@@ -534,7 +580,9 @@ class UserListView(APIView):
         role_id = request.query_params.get(
             "role"
         )
-
+        
+        shift_id = request.query_params.get("shift_id")
+        shift_type = request.query_params.get("shift_type")
         # =================================================
         # FETCH USERS
         # =================================================
@@ -544,6 +592,7 @@ class UserListView(APIView):
             company_id=company_id,
             plant_id=plant_id,
             department_id=department_id,
+            scope=scope,
             employee_code=employee_code,
             email=email,
             first_name=first_name,
@@ -553,6 +602,8 @@ class UserListView(APIView):
             is_staff=is_staff,
             is_superuser=is_superuser,
             role_id=role_id,
+            shift_id=shift_id,
+            shift_type=shift_type,
         )
 
         # =================================================
@@ -676,19 +727,39 @@ class UserDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = UserUpdateSerializer(
+        # =================================================
+        # VALIDATE UPDATE DATA
+        # =================================================
+
+        update_serializer = UserUpdateSerializer(
             user,
             data=request.data,
             partial=True,
+            context={
+                "request": request,
+            },
         )
 
-        serializer.is_valid(
+        update_serializer.is_valid(
             raise_exception=True
+        )
+
+        documents = request.FILES.getlist(
+            "documents"
         )
 
         user = UserService.update_user(
             user,
-            serializer.validated_data,
+            update_serializer.validated_data,
+            updated_by=request.user,
+            documents=documents,
+        )
+
+        # update_user receives the prefetched instance used for validation.
+        # Re-fetch so the response serializer sees the committed document set.
+        user = UserService.get_user_by_id(
+            logged_in_user=request.user,
+            user_id=user.id,
         )
 
         return Response(
@@ -725,7 +796,8 @@ class UserDetailView(APIView):
             )
 
         UserService.delete_user(
-            user
+            user,
+            deleted_by=request.user,
         )
 
         return Response(

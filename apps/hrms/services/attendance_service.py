@@ -320,6 +320,8 @@ class AttendanceService:
                 employee=employee,
                 effective_from__lte=attendance_date,
                 is_active=True,
+                shift__is_active=True,
+                shift__is_deleted=False,
             )
             .filter(
                 models.Q(
@@ -425,6 +427,12 @@ class AttendanceService:
 
         attendance.save()
 
+        AttendanceService.recalculate_monthly_late_counts(
+            attendance.employee,
+            attendance.attendance_date,
+        )
+        attendance.refresh_from_db()
+
         return attendance
 
     # ============================================================
@@ -433,191 +441,121 @@ class AttendanceService:
 
     @staticmethod
     def calculate_attendance(attendance):
+        attendance.is_late = False
+        attendance.late_minutes = 0
+        attendance.early_leave_minutes = 0
+        attendance.overtime_minutes = 0
 
-        # --------------------------------------------------------
-        # No in_time
-        # --------------------------------------------------------
+        shift_assignment = AttendanceService.get_employee_shift(
+            attendance.employee,
+            attendance.attendance_date,
+        )
+        shift = shift_assignment.shift if shift_assignment else None
+        if shift and (
+            shift.company_id != attendance.company_id
+            or shift.plant_id != attendance.plant_id
+        ):
+            shift = None
 
         if not attendance.in_time:
-
             attendance.status = "absent"
-
             attendance.total_work_minutes = 0
-
             return attendance
 
-        # --------------------------------------------------------
-        # in_time exists but out_time doesn't exist
-        # --------------------------------------------------------
+        if shift:
+            shift_start = timezone.make_aware(datetime.combine(
+                attendance.attendance_date,
+                shift.start_time,
+            ))
+            grace_time = shift_start + timedelta(minutes=shift.grace_minutes)
+            if attendance.in_time > grace_time:
+                attendance.is_late = True
+                attendance.late_minutes = max(
+                    int((attendance.in_time - grace_time).total_seconds() / 60),
+                    1,
+                )
 
         if not attendance.out_time:
-
             attendance.status = "present"
-
             attendance.total_work_minutes = 0
-
             return attendance
-
-        # --------------------------------------------------------
-        # Calculate total working time
-        # --------------------------------------------------------
 
         total_seconds = (
-            attendance.out_time
-            - attendance.in_time
+            attendance.out_time - attendance.in_time
         ).total_seconds()
+        total_minutes = max(int(total_seconds / 60), 0)
+        attendance.total_work_minutes = total_minutes
 
-        total_minutes = max(
-            int(total_seconds / 60),
-            0
-        )
-
-        attendance.total_work_minutes = (
-            total_minutes
-        )
-
-        # ========================================================
-        # GET EMPLOYEE SHIFT
-        # ========================================================
-
-        shift_assignment = (
-            EmployeeShift.objects
-            .filter(
-                employee=attendance.employee,
-                effective_from__lte=attendance.attendance_date,
-                is_active=True,
-            )
-            .filter(
-                models.Q(
-                    effective_to__isnull=True
-                )
-                |
-                models.Q(
-                    effective_to__gte=
-                    attendance.attendance_date
-                )
-            )
-            .select_related("shift")
-            .order_by("-effective_from")
-            .first()
-        )
-
-        # --------------------------------------------------------
-        # No shift assigned
-        # --------------------------------------------------------
-
-        if not shift_assignment:
-
+        if not shift:
             attendance.status = "present"
-
             return attendance
 
-        shift = shift_assignment.shift
-
-        # ========================================================
-        # CALCULATE LATE MINUTES
-        # ========================================================
-
-        shift_start = datetime.combine(
-            attendance.attendance_date,
-            shift.start_time
-        )
-
-        shift_start = timezone.make_aware(
-            shift_start
-        )
-
-        grace_time = (
-            shift_start
-            + timedelta(
-                minutes=shift.grace_minutes
-            )
-        )
-
-        if attendance.in_time > grace_time:
-
-            attendance.late_minutes = int(
-                (
-                    attendance.in_time
-                    - grace_time
-                ).total_seconds() / 60
-            )
-
-        else:
-
-            attendance.late_minutes = 0
-
-        # ========================================================
-        # CALCULATE EARLY LEAVE
-        # ========================================================
-
-        shift_end_date = (
-            attendance.attendance_date
-        )
-
+        shift_end_date = attendance.attendance_date
         if shift.is_overnight:
-
-            shift_end_date += timedelta(
-                days=1
-            )
-
-        shift_end = datetime.combine(
+            shift_end_date += timedelta(days=1)
+        shift_end = timezone.make_aware(datetime.combine(
             shift_end_date,
-            shift.end_time
-        )
-
-        shift_end = timezone.make_aware(
-            shift_end
-        )
-
+            shift.end_time,
+        ))
         if attendance.out_time < shift_end:
-
             attendance.early_leave_minutes = int(
-                (
-                    shift_end
-                    - attendance.out_time
-                ).total_seconds() / 60
+                (shift_end - attendance.out_time).total_seconds() / 60
             )
 
-        else:
+        if total_minutes > shift.overtime_after_minutes:
+            attendance.overtime_minutes = (
+                total_minutes - shift.overtime_after_minutes
+            )
 
-            attendance.early_leave_minutes = 0
+        attendance.status = (
+            "half_day"
+            if total_minutes < shift.minimum_work_minutes / 2
+            else "present"
+        )
+        return attendance
 
-        # ========================================================
-        # CALCULATE OVERTIME
-        # ========================================================
-
-        overtime_after = (
-            shift.overtime_after_minutes
+    @staticmethod
+    @transaction.atomic
+    def recalculate_monthly_late_counts(employee, attendance_date):
+        monthly_attendance = (
+            Attendance.objects
+            .filter(
+                employee=employee,
+                attendance_date__year=attendance_date.year,
+                attendance_date__month=attendance_date.month,
+            )
+            .select_related("employee", "company", "plant")
+            .order_by("attendance_date", "id")
         )
 
-        if total_minutes > overtime_after:
+        monthly_late_count = 0
+        for record in monthly_attendance:
+            prior_status = record.status
+            AttendanceService.calculate_attendance(record)
 
-            attendance.overtime_minutes = (
-                total_minutes
-                - overtime_after
-            )
+            if prior_status not in ("present", "half_day", "absent"):
+                record.status = prior_status
 
-        else:
+            if record.is_late:
+                monthly_late_count += 1
+                if record.status in ("present", "half_day", "absent"):
+                    record.status = (
+                        "present" if monthly_late_count <= 3 else "half_day"
+                    )
 
-            attendance.overtime_minutes = 0
+            record.late_count = monthly_late_count
+            record.save(update_fields=[
+                "status",
+                "total_work_minutes",
+                "late_minutes",
+                "is_late",
+                "late_count",
+                "early_leave_minutes",
+                "overtime_minutes",
+                "updated_at",
+            ])
 
-        # ========================================================
-        # CALCULATE STATUS
-        # ========================================================
-
-        if (
-            total_minutes
-            < shift.minimum_work_minutes / 2
-        ):
-
-            attendance.status = "half_day"
-
-        else:
-
-            attendance.status = "present"
-
-        return attendance
+        return monthly_late_count
 
     # ============================================================
     # ADD BIOMETRIC PUNCH
@@ -712,5 +650,11 @@ class AttendanceService:
         # --------------------------------------------------------
 
         attendance.save()
+
+        AttendanceService.recalculate_monthly_late_counts(
+            attendance.employee,
+            attendance.attendance_date,
+        )
+        attendance.refresh_from_db()
 
         return attendance

@@ -162,7 +162,30 @@ class User(AbstractBaseUser, PermissionsMixin):
         choices=SCOPE_CHOICES,
         default="plant",
     )
+        # --------------------------------------------------
+    # AUDIT / SOFT DELETE
     # --------------------------------------------------
+
+    created_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users_created",
+    )
+
+    updated_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users_updated",
+    )
+
+    is_deleted = models.BooleanField(
+        default=False
+    )
+    # ----------------  ----------------------------------
     # HRMS Employee
     # --------------------------------------------------
 

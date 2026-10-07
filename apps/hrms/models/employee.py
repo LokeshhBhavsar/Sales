@@ -270,7 +270,29 @@ class Employee(models.Model):
         blank=True,
         related_name="subordinates"
     )
+    middle_name = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True
+    )
 
+    grade = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True
+    )
+
+    designation = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True
+    )
+
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
     # --------------------------------------------------
     # Audit
     # --------------------------------------------------

@@ -842,17 +842,23 @@
 
 #         return queryset
 from datetime import datetime, date, timedelta
+from uuid import UUID
 
-from django.db.models import Q, Count
+from django.db import transaction
+from django.db.models import Q, Count, OuterRef, Subquery
 from django.utils import timezone
 
 from rest_framework import status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.hrms.models.attendance import Attendance
 from apps.hrms.models.employee import Employee
 from apps.hrms.models.attendance_log import AttendanceLog
+from apps.hrms.models.employee_shift import EmployeeShift
+from apps.hrms.models.shift import Shift
+from apps.masters.models.plant import Plant
 
 from apps.hrms.serializers.attendance import (
     AttendanceSerializer,
@@ -879,6 +885,16 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
     serializer_class = AttendanceSerializer
 
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        employee = instance.employee
+        attendance_date = instance.attendance_date
+        instance.delete()
+        AttendanceService.recalculate_monthly_late_counts(
+            employee,
+            attendance_date,
+        )
+
     def get_queryset(self):
 
         queryset = super().get_queryset()
@@ -895,13 +911,37 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             "employee_code"
         )
 
-        company = self.request.query_params.get(
-            "company"
+        company = (
+            self.request.query_params.get("company")
+            or self.request.query_params.get("company_id")
         )
 
-        plant = self.request.query_params.get(
-            "plant"
+        plant = (
+            self.request.query_params.get("plant")
+            or self.request.query_params.get("plant_id")
         )
+
+        if plant and not company:
+            raise ValidationError({
+                "company": "company is required when filtering by plant."
+            })
+
+        if company and plant:
+            try:
+                company_id = UUID(company)
+                plant_id = UUID(plant)
+            except (ValueError, TypeError, AttributeError):
+                raise ValidationError({
+                    "company": "Provide valid company and plant IDs."
+                })
+
+            if not Plant.objects.filter(
+                id=plant_id,
+                company_id=company_id,
+            ).exists():
+                raise ValidationError({
+                    "plant": "This plant does not belong to the selected company."
+                })
 
         attendance_date = self.request.query_params.get(
             "date"
@@ -922,6 +962,126 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         source = self.request.query_params.get(
             "source"
         )
+
+        shift_type = self.request.query_params.get("shift_type")
+        shift_id = self.request.query_params.get("shift_id")
+        shift_name = self.request.query_params.get("shift_name")
+        shift_time = self.request.query_params.get("shift_time")
+
+        legacy_shift_filters = (shift_name, shift_time)
+        if any(value is not None for value in legacy_shift_filters):
+            if not all(
+                value and value.strip()
+                for value in (shift_type, shift_name, shift_time)
+            ):
+                raise ValidationError({
+                    "shift": "shift_type, shift_name, and shift_time must be provided together."
+                })
+
+        shift_filter_requested = any(
+            value is not None
+            for value in (shift_id, shift_type, shift_name, shift_time)
+        )
+        if shift_filter_requested:
+            if shift_type is not None and (
+                not shift_type.strip()
+                or shift_type.strip().lower() not in dict(Shift.SHIFT_TYPE_CHOICES)
+            ):
+                raise ValidationError({"shift_type": "Invalid shift_type. Choose a valid shift type."})
+
+            selected_shift = None
+            if shift_id is not None:
+                try:
+                    parsed_shift_id = UUID(shift_id)
+                except (ValueError, TypeError, AttributeError):
+                    raise ValidationError({"shift_id": "Provide a valid shift UUID."})
+                try:
+                    selected_shift = Shift.objects.get(id=parsed_shift_id)
+                except Shift.DoesNotExist:
+                    raise ValidationError({"shift_id": "Shift does not exist."})
+
+                if company:
+                    try:
+                        requested_company_id = UUID(company)
+                    except (ValueError, TypeError, AttributeError):
+                        raise ValidationError({"company": "Provide a valid company ID."})
+                    if selected_shift.company_id != requested_company_id:
+                        raise ValidationError({"shift_id": "Shift does not belong to the selected company."})
+                if plant:
+                    try:
+                        requested_plant_id = UUID(plant)
+                    except (ValueError, TypeError, AttributeError):
+                        raise ValidationError({"plant": "Provide a valid plant ID."})
+                    if selected_shift.plant_id != requested_plant_id:
+                        raise ValidationError({"shift_id": "Shift does not belong to the selected plant."})
+
+            if not company or not plant:
+                if shift_name is not None or shift_time is not None:
+                    raise ValidationError({
+                        "shift": "company and plant are required when filtering by shift name or time."
+                    })
+
+            if shift_name is not None or shift_time is not None:
+                try:
+                    company_id = UUID(company)
+                    plant_id = UUID(plant)
+                except (ValueError, TypeError, AttributeError):
+                    raise ValidationError({
+                        "company": "Valid company and plant IDs are required for shift filters."
+                    })
+                try:
+                    start_text, end_text = [part.strip() for part in shift_time.split("-")]
+                    shift_start = datetime.strptime(start_text, "%H:%M").time()
+                    shift_end = datetime.strptime(end_text, "%H:%M").time()
+                except (ValueError, TypeError):
+                    raise ValidationError({
+                        "shift_time": "Use 24-hour HH:MM-HH:MM format."
+                    })
+
+                matching_shift = Shift.objects.filter(
+                    company_id=company_id,
+                    plant_id=plant_id,
+                    shift_type=shift_type.strip().lower(),
+                    name__iexact=shift_name.strip(),
+                    start_time=shift_start,
+                    end_time=shift_end,
+                    is_active=True,
+                    is_deleted=False,
+                )
+                if not matching_shift.exists():
+                    raise ValidationError({
+                        "shift": "No active shift with these values exists for the selected company and plant."
+                    })
+
+            assignments = EmployeeShift.objects.filter(
+                employee_id=OuterRef("employee_id"),
+                effective_from__lte=OuterRef("attendance_date"),
+                is_active=True,
+                shift__is_active=True,
+                shift__is_deleted=False,
+                shift__company_id=OuterRef("company_id"),
+                shift__plant_id=OuterRef("plant_id"),
+            ).filter(
+                Q(effective_to__isnull=True)
+                | Q(effective_to__gte=OuterRef("attendance_date"))
+            ).order_by("-effective_from")
+            queryset = queryset.annotate(
+                assigned_shift_id=Subquery(assignments.values("shift_id")[:1])
+            )
+            if shift_id is not None:
+                queryset = queryset.filter(assigned_shift_id=parsed_shift_id)
+            if shift_type is not None:
+                queryset = queryset.filter(
+                    assigned_shift_id__in=Shift.objects.filter(
+                        shift_type=shift_type.strip().lower(),
+                        is_active=True,
+                        is_deleted=False,
+                    ).values("id")
+                )
+            if shift_name is not None or shift_time is not None:
+                queryset = queryset.filter(
+                    assigned_shift_id__in=matching_shift.values("id")
+                )
 
         # =====================================================
         # NEW FILTERS

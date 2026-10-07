@@ -136,7 +136,45 @@ class Shift(models.Model):
                     "code"
                 ],
                 name="unique_shift_code_per_plant"
-            )
+            ),
+            # -------------------------------------------------
+            # SAME SHIFT NAME + SHIFT TYPE
+            # -------------------------------------------------
+            # Prevent duplicate active shifts having the same:
+            # company + plant + name + shift_type
+            # -------------------------------------------------
+            models.UniqueConstraint(
+                fields=[
+                    "company",
+                    "plant",
+                    "name",
+                    "shift_type",
+                ],
+                condition=models.Q(
+                    is_deleted=False
+                ),
+                name="unique_active_shift_name_type",
+            ),
+
+            # -------------------------------------------------
+            # SAME SHIFT TIME
+            # -------------------------------------------------
+            # Prevent duplicate active shifts having the same:
+            # company + plant + start_time + end_time
+            # -------------------------------------------------
+            models.UniqueConstraint(
+                fields=[
+                    "company",
+                    "plant",
+                    "start_time",
+                    "end_time",
+                ],
+                condition=models.Q(
+                    is_deleted=False
+                ),
+                name="unique_active_shift_time",
+            ),
+        
         ]
 
         indexes = [
