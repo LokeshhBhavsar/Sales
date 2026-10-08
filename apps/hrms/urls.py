@@ -40,9 +40,21 @@ from apps.hrms.views.biometric import (
 from apps.hrms.views.attendance_import import (
     AttendanceImportViewSet,
 )
+from apps.hrms.views.roster_view import (
+    RosterAssignmentDetailView,
+    RosterAssignView,
+    RosterDetailView,
+    RosterListCreateView,
+)
 
 
 urlpatterns = [
+
+    # HRMS Rosters (8 API methods across these routes)
+    path("/rosters/", RosterListCreateView.as_view(), name="roster-list-create"),
+    path("/rosters/<uuid:roster_id>/", RosterDetailView.as_view(), name="roster-detail"),
+    path("/rosters/<uuid:roster_id>/assign/", RosterAssignView.as_view(), name="roster-assign"),
+    path("/roster-assignments/<uuid:assignment_id>/", RosterAssignmentDetailView.as_view(), name="roster-assignment-detail"),
 
     # User
     path(

@@ -406,6 +406,11 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from uuid import UUID
+
+from apps.masters.models.company import Company
+from apps.masters.models.department import Department
+from apps.masters.models.plant import Plant
 
 from apps.hrms.serializers.user_serializer import (
     CreateUserSerializer,
@@ -500,8 +505,9 @@ class UserListView(APIView):
             "plant_id"
         )
 
-        department_id = request.query_params.get(
-            "department"
+        department_id = (
+            request.query_params.get("department_id")
+            or request.query_params.get("department")
         )
         scope = request.query_params.get(
            "scope"
@@ -514,6 +520,62 @@ class UserListView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        parsed_company_id = None
+        parsed_plant_id = None
+        if company_id:
+            try:
+                parsed_company_id = UUID(company_id)
+            except (ValueError, TypeError, AttributeError):
+                return Response(
+                    {"success": False, "message": "Provide a valid company_id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not Company.objects.filter(pk=parsed_company_id).exists():
+                return Response(
+                    {"success": False, "message": "Company not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if plant_id:
+            try:
+                parsed_plant_id = UUID(plant_id)
+            except (ValueError, TypeError, AttributeError):
+                return Response(
+                    {"success": False, "message": "Provide a valid plant_id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not Plant.objects.filter(
+                pk=parsed_plant_id,
+                company_id=parsed_company_id,
+            ).exists():
+                return Response(
+                    {"success": False, "message": "The selected plant does not belong to the selected company."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if department_id:
+            if not plant_id:
+                return Response(
+                    {"success": False, "message": "plant_id is required when filtering by department."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                parsed_department_id = UUID(department_id)
+            except (ValueError, TypeError, AttributeError):
+                return Response(
+                    {"success": False, "message": "Provide a valid department_id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not Department.objects.filter(
+                pk=parsed_department_id,
+                company_id=parsed_company_id,
+                plant_id=parsed_plant_id,
+            ).exists():
+                return Response(
+                    {"success": False, "message": "The selected department does not belong to the selected company and plant."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # =================================================
 # VALIDATE SCOPE

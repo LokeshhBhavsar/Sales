@@ -6,3 +6,4 @@ from .employee_profile import EmployeeProfile
 from .employee_statutory import EmployeeStatutory
 from .emergency_contact import EmployeeEmergencyContact
 from .employee_document import EmployeeDocument
+from .roster import Roster, RosterAssignment

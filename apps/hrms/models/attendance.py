@@ -17,7 +17,6 @@ class Attendance(models.Model):
         ("leave", "Leave"),
         ("holiday", "Holiday"),
         ("weekly_off", "Weekly Off"),
-        ("week_off", "Week Off"),
         ("work_from_home", "Work From Home"),
     )
 

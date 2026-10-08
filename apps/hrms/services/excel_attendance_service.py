@@ -944,7 +944,7 @@ class ExcelAttendanceService:
                             )
                             attendance.day_type = "week_off"
                             attendance.status = (
-                                "present" if cell_status == "WOP" else "week_off"
+                                "present" if cell_status == "WOP" else "weekly_off"
                             )
                             attendance.save(update_fields=["day_type", "status", "updated_at"])
                         else:
