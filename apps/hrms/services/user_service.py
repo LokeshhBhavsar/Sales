@@ -152,7 +152,7 @@ from apps.hrms.models.shift import Shift
 from apps.hrms.models.employee_shift import EmployeeShift
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.db.models import Q, Prefetch
+from django.db.models import F, Q, Prefetch
 
 from apps.hrms.models.employee import Employee
 from apps.accounts.models.user_role import UserRole
@@ -1344,9 +1344,8 @@ class UserService:
         # =====================================================
 
         return queryset.order_by(
-            "first_name",
-            "last_name",
-            "email",
+            F("employee__created_at").desc(nulls_last=True),
+            "-pk",
         )
 
 

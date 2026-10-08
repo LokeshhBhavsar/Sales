@@ -880,7 +880,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             "plant",
         )
         .prefetch_related("logs")
-        .order_by("-attendance_date")
+        .order_by("-created_at", "-attendance_date")
     )
 
     serializer_class = AttendanceSerializer
