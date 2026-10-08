@@ -17,6 +17,7 @@ class Attendance(models.Model):
         ("leave", "Leave"),
         ("holiday", "Holiday"),
         ("weekly_off", "Weekly Off"),
+        ("week_off", "Week Off"),
         ("work_from_home", "Work From Home"),
     )
 
@@ -53,6 +54,19 @@ class Attendance(models.Model):
     )
 
     attendance_date = models.DateField()
+
+    DAY_TYPE_CHOICES = (
+        ("working_day", "Working Day"),
+        ("week_off", "Week Off"),
+        ("holiday", "Holiday"),
+        ("leave", "Leave"),
+    )
+
+    day_type = models.CharField(
+        max_length=20,
+        choices=DAY_TYPE_CHOICES,
+        default="working_day",
+    )
 
     status = models.CharField(
         max_length=30,

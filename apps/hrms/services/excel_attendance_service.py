@@ -258,6 +258,7 @@ from django.utils import timezone
 from openpyxl import load_workbook
 
 from apps.hrms.models.employee import Employee
+from apps.hrms.models.attendance import Attendance
 from apps.hrms.models.attendance_import_row import (
     AttendanceImportRow
 )
@@ -744,7 +745,7 @@ class ExcelAttendanceService:
                 try:
 
                     employee = Employee.objects.get(
-                        employee_code=str(
+                        statutory__punching_code=str(
                             employee_code
                         ).strip(),
                         company=attendance_import.company,
@@ -754,7 +755,7 @@ class ExcelAttendanceService:
                 except Employee.DoesNotExist:
 
                     employee_lookup_error = (
-                        f"Employee code "
+                        f"Punching code "
                         f"{employee_code} not found "
                         f"for selected company and plant."
                     )
@@ -763,7 +764,7 @@ class ExcelAttendanceService:
 
                     employee_lookup_error = (
                         f"Multiple employees found "
-                        f"for employee code "
+                        f"for punching code "
                         f"{employee_code}."
                     )
 
@@ -787,6 +788,21 @@ class ExcelAttendanceService:
                     # =================================================
 
                     check_in_value = None
+
+                    status_value = None
+
+                    if (
+                        status_row is not None
+                        and status_row < len(rows)
+                        and column_index < len(rows[status_row])
+                    ):
+                        status_value = rows[status_row][column_index]
+
+                    cell_status = (
+                        str(status_value).strip().upper()
+                        if status_value is not None else ""
+                    )
+                    is_week_off = cell_status in ("WO", "WOP")
 
                     if (
                         in_time_row is not None
@@ -920,6 +936,22 @@ class ExcelAttendanceService:
                         out_time=check_out_datetime,
                         source="excel"
                         )
+
+                        if is_week_off:
+                            attendance = Attendance.objects.get(
+                                employee=employee,
+                                attendance_date=attendance_date,
+                            )
+                            attendance.day_type = "week_off"
+                            attendance.status = (
+                                "present" if cell_status == "WOP" else "week_off"
+                            )
+                            attendance.save(update_fields=["day_type", "status", "updated_at"])
+                        else:
+                            Attendance.objects.filter(
+                                employee=employee,
+                                attendance_date=attendance_date,
+                            ).update(day_type="working_day")
 
                         # =============================================
                         # MARK IMPORT ROW SUCCESS

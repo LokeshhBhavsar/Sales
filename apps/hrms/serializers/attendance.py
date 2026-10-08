@@ -122,6 +122,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "shift_time",
             "shift_type",
             "attendance_date",
+            "day_type",
             "status",
             "in_time",
             "out_time",

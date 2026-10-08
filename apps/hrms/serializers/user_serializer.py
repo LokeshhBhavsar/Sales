@@ -3942,6 +3942,8 @@ class UserListSerializer(serializers.ModelSerializer):
                     ),
                 }
             )
+        return result
+
     def _get_user_shift(self, obj):
         if not obj.employee:
             return None
