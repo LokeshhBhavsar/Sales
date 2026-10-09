@@ -48,7 +48,7 @@ class RosterAssignment(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="roster_assignments")
     assignment_date = models.DateField()
     shift = models.ForeignKey(Shift, on_delete=models.PROTECT, null=True, blank=True, related_name="roster_assignments")
-    day_type = models.CharField(max_length=20, choices=DAY_TYPE_CHOICES, default="WORKING_DAY")
+    day_type = models.CharField(max_length=20, choices=DAY_TYPE_CHOICES, default="WORKING_DAY", null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

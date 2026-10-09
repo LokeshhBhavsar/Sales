@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import time, timedelta
 from uuid import UUID
 
 from django.db import transaction
@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from apps.hrms.models.employee import Employee
+from apps.hrms.models.employee_shift import EmployeeShift
 from apps.hrms.models.roster import Roster, RosterAssignment
 from apps.hrms.models.shift import Shift
 
@@ -180,5 +181,248 @@ class RosterService:
                     } if item.shift_id else None),
                 }
                 for item in assignments
+            ],
+        }
+
+    @staticmethod
+    @transaction.atomic
+    def rotate_roster(roster, payload, user):
+        if not isinstance(payload, dict):
+            raise ValidationError({"request": "Request body must be a JSON object."})
+        if roster.start_date > roster.end_date:
+            raise ValidationError({"roster": "Roster has an invalid date range."})
+        employee_ids = payload.get("employee_ids")
+        if not isinstance(employee_ids, list) or not employee_ids:
+            raise ValidationError({"employee_ids": "Provide a non-empty list of employee UUIDs."})
+
+        parsed_ids = [RosterService._uuid(value, "employee_ids") for value in employee_ids]
+        if len(set(parsed_ids)) != len(parsed_ids):
+            raise ValidationError({"employee_ids": "Duplicate employee IDs are not allowed."})
+
+        weeks = payload.get("weeks")
+        if isinstance(weeks, bool) or not isinstance(weeks, int) or weeks <= 0:
+            raise ValidationError({"weeks": "weeks must be a positive integer."})
+
+        employees = list(Employee.objects.filter(
+            id__in=parsed_ids,
+            company_id=roster.company_id,
+            plant_id=roster.plant_id,
+        ).select_related("department"))
+        employee_by_id = {employee.id: employee for employee in employees}
+        missing = [str(pk) for pk in parsed_ids if pk not in employee_by_id]
+        if missing:
+            raise ValidationError({"employee_ids": f"Employees do not belong to this roster's company and plant: {', '.join(missing)}."})
+        if roster.department_id:
+            wrong_department = [
+                employee_by_id[pk].employee_code
+                for pk in parsed_ids
+                if employee_by_id[pk].department_id != roster.department_id
+            ]
+            if wrong_department:
+                raise ValidationError({"employee_ids": f"Employees must belong to roster department {roster.department_id}: {', '.join(wrong_department)}."})
+
+        shifts = list(Shift.objects.filter(
+            company_id=roster.company_id,
+            plant_id=roster.plant_id,
+            shift_type="contract",
+            is_active=True,
+            is_deleted=False,
+        ))
+        shift_a = next((item for item in shifts if item.start_time == time(7, 0) and item.end_time == time(19, 0)), None)
+        shift_b = next((item for item in shifts if item.start_time == time(19, 0) and item.end_time == time(7, 0)), None)
+        if not shift_a or not shift_b:
+            raise ValidationError({"shift_configuration": "Active CONTRACT Shift A (07:00-19:00) and Shift B (19:00-07:00) must both exist for this roster's company and plant."})
+
+        applicable_assignments = EmployeeShift.objects.filter(
+            employee_id__in=parsed_ids,
+            effective_from__lte=roster.end_date,
+            is_active=True,
+            shift__is_active=True,
+            shift__is_deleted=False,
+        ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=roster.end_date)).select_related("shift").order_by("-effective_from")
+        current_by_employee = {}
+        for assignment in applicable_assignments:
+            current_by_employee.setdefault(assignment.employee_id, assignment)
+
+        source_rows = list(RosterAssignment.objects.filter(
+            roster=roster,
+            employee_id__in=parsed_ids,
+            assignment_date__range=(roster.start_date, roster.end_date),
+            is_deleted=False,
+        ).select_related("shift", "employee").order_by("assignment_date"))
+        source_by_employee = {pk: [] for pk in parsed_ids}
+        for row in source_rows:
+            source_by_employee[row.employee_id].append(row)
+
+        shift_pair = {shift_a.id: shift_a, shift_b.id: shift_b}
+        baseline_by_employee = {}
+        work_offsets_by_employee = {}
+        day_types_by_employee = {}
+        last_week_start = roster.start_date + timedelta(days=((roster.end_date - roster.start_date).days // 7) * 7)
+
+        for employee_id in parsed_ids:
+            employee = employee_by_id[employee_id]
+            current_assignment = current_by_employee.get(employee_id)
+            if not current_assignment:
+                raise ValidationError({"employee_ids": f"Employee {employee.employee_code} has no applicable shift assignment on {roster.end_date}."})
+            if current_assignment.shift.company_id != roster.company_id or current_assignment.shift.plant_id != roster.plant_id:
+                raise ValidationError({"employee_ids": f"Employee {employee.employee_code} has a shift outside the roster company and plant."})
+            if current_assignment.shift.shift_type.lower() != "contract":
+                raise ValidationError({"employee_ids": [f"Employee {employee.employee_code} is assigned to {current_assignment.shift.shift_type.upper()} shift type. Rotation is allowed only for CONTRACT shift type."]})
+
+            employee_rows = source_by_employee[employee_id]
+            if not employee_rows:
+                raise ValidationError({"assignments": f"Employee {employee.employee_code} has no active source assignments in this roster date range."})
+            for row in employee_rows:
+                if row.day_type not in dict(RosterAssignment.DAY_TYPE_CHOICES):
+                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has an invalid day_type in the source roster."})
+                if row.shift_id and (row.shift_id not in shift_pair or not row.shift.is_active or row.shift.is_deleted):
+                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has an invalid source shift; only active CONTRACT Shift A/B assignments can be rotated."})
+                if row.day_type == "WORKING_DAY" and not row.shift_id:
+                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has a WORKING_DAY without a shift in the source roster."})
+                if row.day_type != "WORKING_DAY" and row.shift_id:
+                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has a shift on a non-working source date."})
+
+            working_rows = [row for row in employee_rows if row.shift_id]
+            applicable_shift = current_assignment.shift
+            if applicable_shift.id not in shift_pair:
+                raise ValidationError({"employee_ids": f"Employee {employee.employee_code} is not assigned to the configured CONTRACT Shift A or Shift B."})
+            baseline = working_rows[-1].shift if working_rows else applicable_shift
+            if baseline.id not in shift_pair:
+                raise ValidationError({"assignments": f"Employee {employee.employee_code} has no valid Shift A/B source assignment."})
+            baseline_by_employee[employee_id] = baseline
+
+            employee_day_types = {}
+            # Preserve the roster's final week's active workday pattern. If
+            # that partial week has no assignment rows, use the dates present
+            # in the roster's own final week as working offsets.
+            work_offsets = set()
+            for row in employee_rows:
+                if last_week_start <= row.assignment_date <= roster.end_date and row.shift_id:
+                    work_offsets.add((row.assignment_date - last_week_start).days)
+                    employee_day_types[(row.assignment_date - last_week_start).days] = row.day_type
+                elif last_week_start <= row.assignment_date <= roster.end_date:
+                    employee_day_types[(row.assignment_date - last_week_start).days] = row.day_type
+            if not work_offsets:
+                for row in employee_rows:
+                    if row.shift_id:
+                        work_offsets.add((row.assignment_date - last_week_start).days % 7)
+            work_offsets_by_employee[employee_id] = work_offsets
+            day_types_by_employee[employee_id] = employee_day_types
+
+        roster_days = (roster.end_date - roster.start_date).days + 1
+        completed_cycles = (roster_days + 6) // 7
+        try:
+            first_rotation_start = roster.start_date + timedelta(days=completed_cycles * 7)
+            generated_end = first_rotation_start + timedelta(days=weeks * 7 - 1)
+            padding_start = roster.end_date + timedelta(days=1)
+            padding_end = first_rotation_start - timedelta(days=1)
+        except (OverflowError, ValueError):
+            raise ValidationError({"weeks": "The requested rotation date range is invalid."})
+
+        actor = _actor_name(user)
+        output_by_employee = {pk: [] for pk in parsed_ids}
+        created_count = 0
+        updated_count = 0
+
+        for employee_id in parsed_ids:
+            employee = employee_by_id[employee_id]
+            active_existing = {
+                item.assignment_date: item
+                for item in RosterAssignment.objects.filter(
+                    roster=roster,
+                    employee_id=employee_id,
+                    assignment_date__range=(padding_start, generated_end),
+                    is_deleted=False,
+                ).select_related("shift")
+            }
+
+            plan = []
+            current_date = padding_start
+            while current_date <= padding_end:
+                plan.append((current_date, None, None))
+                current_date += timedelta(days=1)
+
+            for cycle_index in range(weeks):
+                cycle_start = first_rotation_start + timedelta(days=cycle_index * 7)
+                base_shift = baseline_by_employee[employee_id]
+                rotated_shift = shift_b if base_shift.id == shift_a.id else shift_a
+                if cycle_index % 2:
+                    rotated_shift = base_shift
+                for offset in range(7):
+                    assignment_date = cycle_start + timedelta(days=offset)
+                    if offset in work_offsets_by_employee[employee_id]:
+                        target_shift = rotated_shift
+                        day_type = "WORKING_DAY"
+                    else:
+                        target_shift = None
+                        day_type = day_types_by_employee[employee_id].get(offset)
+                    plan.append((assignment_date, target_shift, day_type))
+
+            for assignment_date, target_shift, target_day_type in plan:
+                existing = active_existing.get(assignment_date)
+                if existing:
+                    if existing.day_type is not None and existing.day_type not in dict(RosterAssignment.DAY_TYPE_CHOICES):
+                        raise ValidationError({"assignments": f"Invalid existing day_type for employee {employee.employee_code} on {assignment_date}."})
+                    if existing.day_type == "WORKING_DAY" and existing.shift_id is None:
+                        raise ValidationError({"assignments": f"Existing WORKING_DAY assignment has no shift for employee {employee.employee_code} on {assignment_date}."})
+                    if existing.day_type != "WORKING_DAY":
+                        if existing.shift_id is not None:
+                            raise ValidationError({"assignments": f"Conflicting non-working assignment for employee {employee.employee_code} on {assignment_date}."})
+                        # Preserve manual leave, holiday, and week-off rows.
+                        output_by_employee[employee_id].append({
+                            "date": assignment_date,
+                            "shift": None,
+                            "shift_id": None,
+                            "day_type": existing.day_type,
+                        })
+                        continue
+                    if existing.shift_id not in shift_pair:
+                        raise ValidationError({"assignments": f"Conflicting existing shift for employee {employee.employee_code} on {assignment_date}."})
+                    if target_shift is None:
+                        raise ValidationError({"assignments": f"A working shift already exists for employee {employee.employee_code} on padding date {assignment_date}."})
+                    existing.shift = target_shift
+                    existing.day_type = target_day_type
+                    existing.updated_by_name = actor
+                    existing.save(update_fields=["shift", "day_type", "updated_by_name", "updated_at"])
+                    updated_count += 1
+                    chosen_shift = target_shift
+                    chosen_day_type = target_day_type
+                else:
+                    created = RosterAssignment.objects.create(
+                        roster=roster,
+                        employee=employee,
+                        assignment_date=assignment_date,
+                        shift=target_shift,
+                        day_type=target_day_type,
+                        created_by_name=actor,
+                        updated_by_name=actor,
+                    )
+                    created_count += 1
+                    chosen_shift = created.shift
+                    chosen_day_type = created.day_type
+                output_by_employee[employee_id].append({
+                    "date": assignment_date,
+                    "shift": chosen_shift.name if chosen_shift else None,
+                    "shift_id": str(chosen_shift.id) if chosen_shift else None,
+                    "day_type": chosen_day_type,
+                })
+
+        return {
+            "roster_id": str(roster.id),
+            "employees_rotated": len(parsed_ids),
+            "weeks": weeks,
+            "generated_start_date": padding_start,
+            "generated_end_date": generated_end,
+            "assignments_created": created_count,
+            "assignments_updated": updated_count,
+            "rotation": [
+                {
+                    "employee_id": str(employee_id),
+                    "employee_name": f"{employee_by_id[employee_id].first_name} {employee_by_id[employee_id].last_name}".strip(),
+                    "employee_code": employee_by_id[employee_id].employee_code,
+                    "assignments": output_by_employee[employee_id],
+                }
+                for employee_id in parsed_ids
             ],
         }

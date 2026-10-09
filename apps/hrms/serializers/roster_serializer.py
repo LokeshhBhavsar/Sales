@@ -63,7 +63,7 @@ class RosterEditSerializer(RosterSerializer):
 class RosterAssignmentUpdateSerializer(serializers.ModelSerializer):
     shift_id = serializers.PrimaryKeyRelatedField(source="shift", queryset=RosterAssignment._meta.get_field("shift").remote_field.model.objects.filter(is_deleted=False, is_active=True), required=False, allow_null=True)
     shift_type = serializers.CharField(write_only=True, required=False)
-    day_type = serializers.ChoiceField(choices=RosterAssignment.DAY_TYPE_CHOICES, required=False)
+    day_type = serializers.ChoiceField(choices=RosterAssignment.DAY_TYPE_CHOICES, required=False, allow_null=True)
 
     class Meta:
         model = RosterAssignment
@@ -96,3 +96,45 @@ class RosterAssignmentUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop("shift_type", None)
         return super().update(instance, validated_data)
+
+
+class RosterAssignmentListSerializer(serializers.ModelSerializer):
+    assignment_id = serializers.UUIDField(source="id", read_only=True)
+    roster_id = serializers.UUIDField(source="roster.id", read_only=True)
+    roster_name = serializers.CharField(source="roster.name", read_only=True)
+    roster_start_date = serializers.DateField(source="roster.start_date", read_only=True)
+    roster_end_date = serializers.DateField(source="roster.end_date", read_only=True)
+    roster_status = serializers.CharField(source="roster.status", read_only=True)
+    company_id = serializers.UUIDField(source="roster.company_id", read_only=True)
+    company_name = serializers.CharField(source="roster.company.name", read_only=True)
+    plant_id = serializers.UUIDField(source="roster.plant_id", read_only=True)
+    plant_name = serializers.CharField(source="roster.plant.name", read_only=True, allow_null=True)
+    department_id = serializers.UUIDField(source="roster.department_id", read_only=True, allow_null=True)
+    employee_id = serializers.UUIDField(read_only=True)
+    employee_code = serializers.CharField(source="employee.employee_code", read_only=True)
+    employee_name = serializers.SerializerMethodField()
+    shift_id = serializers.UUIDField(read_only=True, allow_null=True)
+    shift_name = serializers.CharField(source="shift.name", read_only=True, allow_null=True)
+    shift_code = serializers.CharField(source="shift.code", read_only=True, allow_null=True)
+    shift_time = serializers.SerializerMethodField()
+    shift_type = serializers.CharField(source="shift.shift_type", read_only=True, allow_null=True)
+    assignment_date = serializers.DateField(read_only=True)
+
+    class Meta:
+        model = RosterAssignment
+        fields = (
+            "assignment_id", "roster_id", "roster_name", "roster_start_date", "roster_end_date",
+            "roster_status", "company_id", "company_name",
+            "plant_id", "plant_name", "department_id", "employee_id", "employee_code",
+            "employee_name", "assignment_date", "shift_id", "shift_name", "shift_code",
+            "shift_time", "shift_type", "day_type", "created_at", "updated_at",
+            "created_by_name", "updated_by_name",
+        )
+
+    def get_employee_name(self, obj):
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip()
+
+    def get_shift_time(self, obj):
+        if not obj.shift_id:
+            return None
+        return f"{obj.shift.start_time.strftime('%H:%M')}-{obj.shift.end_time.strftime('%H:%M')}"

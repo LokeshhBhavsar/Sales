@@ -42,9 +42,11 @@ from apps.hrms.views.attendance_import import (
 )
 from apps.hrms.views.roster_view import (
     RosterAssignmentDetailView,
+    RosterAssignmentListView,
     RosterAssignView,
     RosterDetailView,
     RosterListCreateView,
+    RosterRotateView,
 )
 
 
@@ -54,6 +56,8 @@ urlpatterns = [
     path("/rosters/", RosterListCreateView.as_view(), name="roster-list-create"),
     path("/rosters/<uuid:roster_id>/", RosterDetailView.as_view(), name="roster-detail"),
     path("/rosters/<uuid:roster_id>/assign/", RosterAssignView.as_view(), name="roster-assign"),
+    path("/rosters/<uuid:roster_id>/rotate/", RosterRotateView.as_view(), name="roster-rotate"),
+    path("/roster-assignments/", RosterAssignmentListView.as_view(), name="roster-assignment-list"),
     path("/roster-assignments/<uuid:assignment_id>/", RosterAssignmentDetailView.as_view(), name="roster-assignment-detail"),
 
     # User
