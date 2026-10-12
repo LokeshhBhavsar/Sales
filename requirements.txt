@@ -63,6 +63,7 @@ msgpack==1.2.1
 multidict==6.7.1
 networkx==3.4.2
 numpy==2.2.6
+openpyxl==3.1.5
 packaging==26.2
 prettytable==3.18.0
 prometheus_client==0.26.0
