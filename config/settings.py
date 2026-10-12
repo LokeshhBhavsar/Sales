@@ -30,7 +30,11 @@ SECRET_KEY = 'django-insecure-5mpi31i%#j^!134iee6pg&_r7_vs@lexzgtkv%-f5c_b)64ur&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "api.indusflow.io",
+    "localhost",
+    "127.0.0.1",
+    ]
 
 
 # Application definition
