@@ -25,7 +25,7 @@ from apps.accounts.models.user_role import UserRole
 
 
 # class IsSuperAdmin(BasePermission):
-
+#this is permission.py main file
 #     message = "Only Super Admin can perform this action."
 
 #     def has_permission(self, request, view):
