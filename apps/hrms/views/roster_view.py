@@ -146,6 +146,7 @@ class RosterAssignmentListView(APIView):
                 "shift_time": row["shift_time"],
                 "shift_type": row["shift_type"],
                 "day_type": row["day_type"],
+                "source": row["source"],
             })
 
         data = []

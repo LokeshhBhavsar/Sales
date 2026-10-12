@@ -95,6 +95,7 @@ class RosterAssignmentUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         validated_data.pop("shift_type", None)
+        validated_data["source"] = "manual"
         return super().update(instance, validated_data)
 
 
@@ -127,7 +128,7 @@ class RosterAssignmentListSerializer(serializers.ModelSerializer):
             "roster_status", "company_id", "company_name",
             "plant_id", "plant_name", "department_id", "employee_id", "employee_code",
             "employee_name", "assignment_date", "shift_id", "shift_name", "shift_code",
-            "shift_time", "shift_type", "day_type", "created_at", "updated_at",
+            "shift_time", "shift_type", "day_type", "source", "created_at", "updated_at",
             "created_by_name", "updated_by_name",
         )
 

@@ -6,6 +6,7 @@ from apps.masters.views.company_view import (
 )
 from apps.masters.views.plant_view import (
     PlantDetailView,
+    PlantDetailsView,
     PlantView,
 )
 from apps.masters.views.department_view import (
@@ -35,6 +36,11 @@ urlpatterns = [
             "/plants/<uuid:plant_id>",
             PlantDetailView.as_view(),
             name="plant-detail",
+        ),
+        path(
+            "/plants/<uuid:plant_id>/details/",
+            PlantDetailsView.as_view(),
+            name="plant-details",
         ),
     path(
         "/departments/",

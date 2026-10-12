@@ -121,6 +121,7 @@ from rest_framework.views import APIView
 from apps.masters.serializers.plant_serializer import (
     PlantCreateSerializer,
     PlantDetailSerializer,
+    PlantDetailsSerializer,
     PlantListSerializer,
     PlantUpdateSerializer,
 )
@@ -261,3 +262,11 @@ class PlantDetailView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+class PlantDetailsView(APIView):
+
+    def get(self, request, plant_id):
+        plant = PlantService.get_plant_details(plant_id)
+        serializer = PlantDetailsSerializer(plant)
+        return Response(serializer.data, status=status.HTTP_200_OK)

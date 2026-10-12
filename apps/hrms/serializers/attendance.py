@@ -93,6 +93,8 @@ class AttendanceSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    punching_code = serializers.SerializerMethodField()
+
     employee_name = serializers.SerializerMethodField()
 
     shift_name = AttendanceShiftField("name", required=False)
@@ -116,6 +118,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "plant_id",
             "employee",
             "employee_code",
+            "punching_code",
             "employee_name",
             "shift_id",
             "shift_name",
@@ -164,6 +167,10 @@ class AttendanceSerializer(serializers.ModelSerializer):
             f"{obj.employee.first_name} "
             f"{obj.employee.last_name}"
         ).strip()
+
+    def get_punching_code(self, obj):
+        statutory = getattr(obj.employee, "statutory", None)
+        return statutory.punching_code if statutory else None
 
     def validate(self, attrs):
         request_data = self.initial_data

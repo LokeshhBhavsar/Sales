@@ -36,6 +36,11 @@ class Roster(models.Model):
 
 
 class RosterAssignment(models.Model):
+    SOURCE_CHOICES = (
+        ("manual", "Manual"),
+        ("rotation", "Rotation"),
+    )
+
     DAY_TYPE_CHOICES = (
         ("WORKING_DAY", "Working Day"),
         ("WEEK_OFF", "Week Off"),
@@ -49,6 +54,7 @@ class RosterAssignment(models.Model):
     assignment_date = models.DateField()
     shift = models.ForeignKey(Shift, on_delete=models.PROTECT, null=True, blank=True, related_name="roster_assignments")
     day_type = models.CharField(max_length=20, choices=DAY_TYPE_CHOICES, default="WORKING_DAY", null=True, blank=True)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="manual")
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

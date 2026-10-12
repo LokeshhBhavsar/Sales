@@ -19,6 +19,11 @@ def _actor_name(user):
 
 class RosterService:
     @staticmethod
+    def _employee_display(employee):
+        name = f"{employee.first_name or ''} {employee.last_name or ''}".strip()
+        return f"{name} - {employee.employee_code}"
+
+    @staticmethod
     def active_rosters():
         return Roster.objects.filter(is_deleted=False).annotate(
             total_employees=Count("assignments__employee_id", filter=Q(assignments__is_deleted=False), distinct=True)
@@ -143,6 +148,7 @@ class RosterService:
                 assignment_date=assignment_date,
                 shift=shift,
                 day_type=day_type,
+                source="manual",
                 created_by_name=actor,
                 updated_by_name=actor,
             )
@@ -169,6 +175,7 @@ class RosterService:
                     "employee": {"id": str(item.employee_id), "employee_code": item.employee.employee_code, "name": f"{item.employee.first_name} {item.employee.last_name}".strip()},
                     "assignment_date": item.assignment_date,
                     "day_type": item.day_type,
+                    "source": item.source,
                     "shift_id": str(item.shift_id) if item.shift_id else None,
                     "shift_name": item.shift.name if item.shift_id else None,
                     "shift_code": item.shift.code if item.shift_id else None,
@@ -214,7 +221,7 @@ class RosterService:
             raise ValidationError({"employee_ids": f"Employees do not belong to this roster's company and plant: {', '.join(missing)}."})
         if roster.department_id:
             wrong_department = [
-                employee_by_id[pk].employee_code
+                RosterService._employee_display(employee_by_id[pk])
                 for pk in parsed_ids
                 if employee_by_id[pk].department_id != roster.department_id
             ]
@@ -262,34 +269,35 @@ class RosterService:
 
         for employee_id in parsed_ids:
             employee = employee_by_id[employee_id]
+            employee_display = RosterService._employee_display(employee)
             current_assignment = current_by_employee.get(employee_id)
             if not current_assignment:
-                raise ValidationError({"employee_ids": f"Employee {employee.employee_code} has no applicable shift assignment on {roster.end_date}."})
+                raise ValidationError({"employee_ids": f"{employee_display} has no applicable shift assignment on {roster.end_date}."})
             if current_assignment.shift.company_id != roster.company_id or current_assignment.shift.plant_id != roster.plant_id:
-                raise ValidationError({"employee_ids": f"Employee {employee.employee_code} has a shift outside the roster company and plant."})
+                raise ValidationError({"employee_ids": f"{employee_display} has a shift outside the roster company and plant."})
             if current_assignment.shift.shift_type.lower() != "contract":
-                raise ValidationError({"employee_ids": [f"Employee {employee.employee_code} is assigned to {current_assignment.shift.shift_type.upper()} shift type. Rotation is allowed only for CONTRACT shift type."]})
+                raise ValidationError({"employee_ids": [f"{employee_display} is assigned to {current_assignment.shift.shift_type.upper()} shift type. Rotation is allowed only for CONTRACT shift type."]})
 
             employee_rows = source_by_employee[employee_id]
             if not employee_rows:
-                raise ValidationError({"assignments": f"Employee {employee.employee_code} has no active source assignments in this roster date range."})
+                raise ValidationError({"assignments": f"{employee_display} has no active source assignments in this roster date range."})
             for row in employee_rows:
                 if row.day_type not in dict(RosterAssignment.DAY_TYPE_CHOICES):
-                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has an invalid day_type in the source roster."})
+                    raise ValidationError({"assignments": f"{employee_display} has an invalid day_type in the source roster."})
                 if row.shift_id and (row.shift_id not in shift_pair or not row.shift.is_active or row.shift.is_deleted):
-                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has an invalid source shift; only active CONTRACT Shift A/B assignments can be rotated."})
+                    raise ValidationError({"assignments": f"{employee_display} has an invalid source shift; only active CONTRACT Shift A/B assignments can be rotated."})
                 if row.day_type == "WORKING_DAY" and not row.shift_id:
-                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has a WORKING_DAY without a shift in the source roster."})
+                    raise ValidationError({"assignments": f"{employee_display} has a WORKING_DAY without a shift in the source roster."})
                 if row.day_type != "WORKING_DAY" and row.shift_id:
-                    raise ValidationError({"assignments": f"Employee {employee.employee_code} has a shift on a non-working source date."})
+                    raise ValidationError({"assignments": f"{employee_display} has a shift on a non-working source date."})
 
             working_rows = [row for row in employee_rows if row.shift_id]
             applicable_shift = current_assignment.shift
             if applicable_shift.id not in shift_pair:
-                raise ValidationError({"employee_ids": f"Employee {employee.employee_code} is not assigned to the configured CONTRACT Shift A or Shift B."})
+                raise ValidationError({"employee_ids": f"{employee_display} is not assigned to the configured CONTRACT Shift A or Shift B."})
             baseline = working_rows[-1].shift if working_rows else applicable_shift
             if baseline.id not in shift_pair:
-                raise ValidationError({"assignments": f"Employee {employee.employee_code} has no valid Shift A/B source assignment."})
+                raise ValidationError({"assignments": f"{employee_display} has no valid Shift A/B source assignment."})
             baseline_by_employee[employee_id] = baseline
 
             employee_day_types = {}
@@ -363,28 +371,30 @@ class RosterService:
                 existing = active_existing.get(assignment_date)
                 if existing:
                     if existing.day_type is not None and existing.day_type not in dict(RosterAssignment.DAY_TYPE_CHOICES):
-                        raise ValidationError({"assignments": f"Invalid existing day_type for employee {employee.employee_code} on {assignment_date}."})
+                        raise ValidationError({"assignments": f"Invalid existing day_type for {employee_display} on {assignment_date}."})
                     if existing.day_type == "WORKING_DAY" and existing.shift_id is None:
-                        raise ValidationError({"assignments": f"Existing WORKING_DAY assignment has no shift for employee {employee.employee_code} on {assignment_date}."})
+                        raise ValidationError({"assignments": f"Existing WORKING_DAY assignment has no shift for {employee_display} on {assignment_date}."})
                     if existing.day_type != "WORKING_DAY":
                         if existing.shift_id is not None:
-                            raise ValidationError({"assignments": f"Conflicting non-working assignment for employee {employee.employee_code} on {assignment_date}."})
+                            raise ValidationError({"assignments": f"Conflicting non-working assignment for {employee_display} on {assignment_date}."})
                         # Preserve manual leave, holiday, and week-off rows.
                         output_by_employee[employee_id].append({
                             "date": assignment_date,
                             "shift": None,
                             "shift_id": None,
                             "day_type": existing.day_type,
+                            "source": existing.source,
                         })
                         continue
                     if existing.shift_id not in shift_pair:
-                        raise ValidationError({"assignments": f"Conflicting existing shift for employee {employee.employee_code} on {assignment_date}."})
+                        raise ValidationError({"assignments": f"Conflicting existing shift for {employee_display} on {assignment_date}."})
                     if target_shift is None:
-                        raise ValidationError({"assignments": f"A working shift already exists for employee {employee.employee_code} on padding date {assignment_date}."})
+                        raise ValidationError({"assignments": f"A working shift already exists for {employee_display} on padding date {assignment_date}."})
                     existing.shift = target_shift
                     existing.day_type = target_day_type
+                    existing.source = "rotation"
                     existing.updated_by_name = actor
-                    existing.save(update_fields=["shift", "day_type", "updated_by_name", "updated_at"])
+                    existing.save(update_fields=["shift", "day_type", "source", "updated_by_name", "updated_at"])
                     updated_count += 1
                     chosen_shift = target_shift
                     chosen_day_type = target_day_type
@@ -395,6 +405,7 @@ class RosterService:
                         assignment_date=assignment_date,
                         shift=target_shift,
                         day_type=target_day_type,
+                        source="rotation",
                         created_by_name=actor,
                         updated_by_name=actor,
                     )

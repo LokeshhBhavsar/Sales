@@ -59,6 +59,8 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from apps.masters.models.plant import Plant
+from apps.masters.models.department import Department
+from apps.hrms.models.employee import Employee
 
 
 class PlantService:
@@ -130,6 +132,19 @@ class PlantService:
             id=plant_id,
             is_active=True
         )
+
+    @staticmethod
+    def get_plant_details(plant_id):
+        plant = PlantService.get_plant(plant_id)
+        plant.employee_count = Employee.objects.filter(
+            plant_id=plant.id,
+            status="active",
+        ).count()
+        plant.department_count = Department.objects.filter(
+            plant_id=plant.id,
+            is_active=True,
+        ).count()
+        return plant
 
     # =========================================================
     # UPDATE

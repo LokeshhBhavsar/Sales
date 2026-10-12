@@ -369,6 +369,35 @@ class PlantListSerializer(serializers.ModelSerializer):
 class PlantDetailSerializer(PlantListSerializer):
     pass
 
+
+class PlantDetailsSerializer(PlantListSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    updated_by_name = serializers.SerializerMethodField()
+    employee_count = serializers.IntegerField(read_only=True)
+    department_count = serializers.IntegerField(read_only=True)
+
+    class Meta(PlantListSerializer.Meta):
+        fields = PlantListSerializer.Meta.fields + [
+            "created_by_name",
+            "updated_by_name",
+            "employee_count",
+            "department_count",
+        ]
+
+    @staticmethod
+    def _user_name(obj, relationship):
+        user = getattr(obj, relationship, None)
+        if user is None:
+            return None
+        full_name = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip()
+        return full_name or getattr(user, "username", None) or getattr(user, "email", None)
+
+    def get_created_by_name(self, obj):
+        return self._user_name(obj, "created_by")
+
+    def get_updated_by_name(self, obj):
+        return self._user_name(obj, "updated_by")
+
 class PlantUpdateSerializer(serializers.ModelSerializer):
 
     address = PlantAddressSerializer(

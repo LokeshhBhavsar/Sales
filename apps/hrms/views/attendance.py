@@ -876,6 +876,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         Attendance.objects
         .select_related(
             "employee",
+            "employee__statutory",
             "company",
             "plant",
         )
@@ -1377,6 +1378,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 "employee__employee_code",
                 "employee__first_name",
                 "employee__last_name",
+                "employee__statutory__punching_code",
             )
             .annotate(
                 total=Count("id"),
@@ -1391,15 +1393,32 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             .order_by("employee__employee_code")
         )
 
+        late_dates_by_employee = {}
+        for employee_id, attendance_date in queryset.filter(
+            is_late=True
+        ).order_by("attendance_date", "id").values_list(
+            "employee_id", "attendance_date"
+        ):
+            late_dates_by_employee.setdefault(employee_id, []).append(
+                attendance_date
+            )
+
         for employee in employee_summary:
             first_name = employee["employee__first_name"] or ""
             last_name = employee["employee__last_name"] or ""
             employee_name = f"{first_name} {last_name}".strip()
 
+            late_dates = late_dates_by_employee.get(
+                employee["employee_id"], []
+            )
+
             summary["employee_summary"].append(
                 {
                     "employee_id": str(employee["employee_id"]),
                     "employee_code": employee["employee__employee_code"],
+                    "punching_code": employee[
+                        "employee__statutory__punching_code"
+                    ],
                     "employee_name": employee_name,
                     "total": employee["total"],
                     "present": employee["present"],
@@ -1409,6 +1428,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     "holiday": employee["holiday"],
                     "weekly_off": employee["weekly_off"],
                     "work_from_home": employee["work_from_home"],
+                    "late_count": len(late_dates),
+                    "late_dates": late_dates,
                 }
             )
 
